@@ -1,0 +1,330 @@
+{
+  "schema": 1,
+  "owner": "display",
+  "db": {
+    "step": 0.25,
+    "no_data": -128,
+    "clamp_min": -127,
+    "clamp_max": 48,
+    "floor_db": -40,
+    "peak_norm_default": false,
+    "refs": [
+      "fixed_material",
+      "frame_peak"
+    ],
+    "ref_by_product": {
+      "sar": "frame_peak",
+      "map": "fixed_material",
+      "peak": "frame_peak"
+    }
+  },
+  "mosaic": {
+    "limit": 50,
+    "poll_ms": 700,
+    "fade_min": 0.45,
+    "state_since": true,
+    "image_endpoint": "/image/<seq>",
+    "snapshot_endpoint": "/snapshot"
+  },
+  "sar": {
+    "range": {
+      "min_m": {
+        "$ref": "protocol.json#/sar/capture/min_range_m"
+      },
+      "max_m": {
+        "$ref": "protocol.json#/sar/capture/max_range_m"
+      }
+    },
+    "side_window": {
+      "min_abs_deg": {
+        "$ref": "protocol.json#/sar/image_window/min_angle_deg"
+      },
+      "max_abs_deg": {
+        "$ref": "protocol.json#/sar/image_window/max_angle_deg"
+      }
+    },
+    "default_range_km": 20,
+    "contrast_db_options": [
+      20,
+      30,
+      40
+    ],
+    "contrast_default_db": 40,
+    "map": {
+      "range_m": {
+        "$ref": "sar.json#/map/service_defaults/range_m"
+      },
+      "azimuth_deg": {
+        "$ref": "sar.json#/map/service_defaults/azimuth_deg"
+      },
+      "cell_m": {
+        "$ref": "sar.json#/map/service_defaults/cell_m"
+      },
+      "beam_deg": {
+        "$ref": "sar.json#/map/service_defaults/beam_deg"
+      },
+      "looks": {
+        "$ref": "sar.json#/map/service_defaults/looks"
+      }
+    },
+    "dbs": {
+      "sharpens": {
+        "$ref": "sar.json#/map/dbs/sharpens"
+      },
+      "default_sharpen": {
+        "$ref": "sar.json#/map/dbs/sharpen_default"
+      },
+      "near_forward_deg": {
+        "$ref": "sar.json#/map/dbs/near_forward_deg"
+      }
+    },
+    "sweep": {
+      "min_angle_deg": {
+        "$ref": "sar.json#/map/sweep/min_angle_deg"
+      },
+      "max_angle_deg": {
+        "$ref": "sar.json#/map/sweep/max_angle_deg"
+      },
+      "min_range_m": {
+        "$ref": "sar.json#/map/sweep/min_range_m"
+      },
+      "max_range_m": {
+        "$ref": "sar.json#/map/sweep/max_range_m"
+      }
+    },
+    "colors": {
+      "background": "#090d12",
+      "legend_gradient": [
+        "#19376e",
+        "#46b4a0",
+        "#ead78c"
+      ],
+      "surface": {
+        "land": [
+          125,
+          150,
+          90
+        ],
+        "unknown": [
+          90,
+          90,
+          90
+        ],
+        "water": [
+          25,
+          55,
+          110
+        ],
+        "shallow_water": [
+          70,
+          180,
+          160
+        ],
+        "road": [
+          195,
+          150,
+          80
+        ],
+        "runway": [
+          230,
+          210,
+          175
+        ]
+      }
+    }
+  },
+  "aa": {
+    "kt_per_mps": 1.94384,
+    "nm_per_km": 0.539957,
+    "m_per_nm": 1852,
+    "ft_per_m": 3.28084,
+    "range_scale_nm": [
+      5,
+      10,
+      20,
+      40,
+      80,
+      120,
+      160,
+      200
+    ],
+    "colors": {
+      "grid": "#18242e",
+      "grid_text": "#54707e",
+      "band": "#0d151c",
+      "search": "#2ec8e0",
+      "track": "#ff9a3c",
+      "stt": "#ff5252",
+      "confirmed": "#39d6ff",
+      "tentative": "#ffd24a",
+      "truth": "#8a97a0",
+      "iff_friend": "#4db8ff",
+      "iff_hostile": "#ff5252",
+      "iff_unknown": "#ffd24a"
+    }
+  },
+  "sources": {
+    "db.step": {
+      "file": "tools/sar_service/mosaic_store.cjs",
+      "line": 64,
+      "class": "setting",
+      "note": "Int8 量化 = round(db*4)，0.25 dB 步进"
+    },
+    "db.no_data": {
+      "file": "tools/sar_service/mosaic_store.cjs",
+      "line": 65,
+      "class": "setting",
+      "note": "非有限 dB 写 -128；不参与插值/统计"
+    },
+    "db.clamp_min": {
+      "file": "tools/sar_service/mosaic_store.cjs",
+      "line": 64,
+      "class": "setting",
+      "note": "有效最暗值 -127（≈ -31.75 dB）"
+    },
+    "db.clamp_max": {
+      "file": "tools/sar_service/mosaic_store.cjs",
+      "line": 64,
+      "class": "setting",
+      "note": "+12 dB 余量"
+    },
+    "db.floor_db": {
+      "file": "src/sar_core/map.cjs",
+      "line": 500,
+      "class": "setting",
+      "note": "完整浮点测到暗值下限 -40 dB；不是 no_data"
+    },
+    "db.peak_norm_default": {
+      "file": "src/sar_core/map.cjs",
+      "line": 500,
+      "class": "setting",
+      "note": "MAP 默认固定参考，不做逐帧峰值归一化"
+    },
+    "db.refs": {
+      "file": "docs/conventions.md",
+      "line": 503,
+      "class": "setting",
+      "note": "每个图像结果必须带 db_ref：fixed_material | frame_peak"
+    },
+    "mosaic.limit": {
+      "file": "tools/sar_service/mosaic_store.cjs",
+      "line": 11,
+      "class": "setting",
+      "note": "MOSAIC_LIMIT=50；viewer 的 limit 也是 50"
+    },
+    "mosaic.poll_ms": {
+      "file": "tools/sar_viewer.html",
+      "line": 1354,
+      "class": "setting",
+      "note": "每 700 ms 轮询 /state；矩阵按 seq 单取"
+    },
+    "mosaic.fade_min": {
+      "file": "tools/sar_viewer.html",
+      "line": 564,
+      "class": "setting",
+      "note": "旧图淡出下限 0.45"
+    },
+    "mosaic.state_since": {
+      "file": "tools/sar_service/http_api.cjs",
+      "line": 93,
+      "class": "setting",
+      "note": "?since=<seq> 增量轮询"
+    },
+    "mosaic.image_endpoint": {
+      "file": "tools/sar_service/http_api.cjs",
+      "line": 21,
+      "class": "setting",
+      "note": "统一图像端点 /image/<seq>；/mosaic/<seq> 为兼容别名"
+    },
+    "mosaic.snapshot_endpoint": {
+      "file": "tools/sar_service/http_api.cjs",
+      "line": 34,
+      "class": "setting",
+      "note": "完整结果/输入备份端点 /snapshot"
+    },
+    "sar.range": {
+      "file": "tools/sar_service/collector.cjs",
+      "line": 120,
+      "class": "setting",
+      "note": "引用 protocol 的 1-50 km 采集边界"
+    },
+    "sar.side_window": {
+      "file": "tools/sar_service/arbiter.cjs",
+      "line": 18,
+      "class": "setting",
+      "note": "引用 protocol 的 20-160° 侧视窗"
+    },
+    "sar.default_range_km": {
+      "file": "tools/sar_viewer.html",
+      "line": 60,
+      "class": "setting",
+      "note": "页面地距默认 20 km，范围 1-50 km"
+    },
+    "sar.contrast_db_options": {
+      "file": "tools/sar_viewer.html",
+      "line": 79,
+      "class": "setting",
+      "note": "20/30/40 dB 显示对比度选项"
+    },
+    "sar.contrast_default_db": {
+      "file": "tools/sar_viewer.html",
+      "line": 79,
+      "class": "setting",
+      "note": "默认 40 dB"
+    },
+    "sar.map": {
+      "file": "tools/sar_service/map_session.cjs",
+      "line": 272,
+      "class": "setting",
+      "note": "引用 sar.json 的 MAP 服务默认值"
+    },
+    "sar.dbs": {
+      "file": "tools/sar_service/dbs_session.cjs",
+      "line": 14,
+      "class": "setting",
+      "note": "引用 sar.json 的 DBS 8/32 锐化与近前视 20°"
+    },
+    "sar.sweep": {
+      "file": "tools/sar_service/sweep_planner.cjs",
+      "line": 18,
+      "class": "setting",
+      "note": "引用 sar.json 的扫掠窗口 30-60°/1-50 km"
+    },
+    "sar.colors": {
+      "file": "tools/sar_viewer.html",
+      "line": 6,
+      "class": "setting",
+      "note": "页面背景/图例渐变；地表色见 94 行"
+    },
+    "aa": {
+      "file": "tools/viewer/index.html",
+      "line": 130,
+      "class": "setting",
+      "note": "KT/KNM/M2NM 显示换算；ft 见 264 行"
+    },
+    "aa.range_scale_nm": {
+      "file": "tools/viewer/index.html",
+      "line": 130,
+      "class": "setting",
+      "note": "可选量程 5/10/20/40/80/120/160/200 NM"
+    },
+    "aa.colors": {
+      "file": "tools/viewer/index.html",
+      "line": 156,
+      "class": "setting",
+      "note": "IFF/航迹/背景颜色"
+    }
+  },
+  "known_conflicts": [
+    {
+      "id": "db_float_floor_vs_int8_floor",
+      "topic": "-40 dB 浮点下限与 -127 Int8 有效下限不是同一件事",
+      "evidence": [
+        "tools/sar_map.cjs:637-638 clamps float dB to -40",
+        "tools/sar_live.cjs:285 clamps Int8 to -127 while -128 is no data",
+        "docs/conventions.md:523 explains -40 dB quantises to -127, and -127 cannot be read back as -40"
+      ],
+      "resolution": "spec 同时保留 floor_db=-40 与 clamp_min=-127，并记录换算关系；显示层不得从 -127 反推 -40"
+    }
+  ]
+}

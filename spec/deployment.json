@@ -1,0 +1,201 @@
+{
+  "schema": 1,
+  "owner": "deployment",
+  "saved_games": {
+    "path_env": "USERPROFILE",
+    "default_candidates": [
+      "%USERPROFILE%/Saved Games/DCS",
+      "%USERPROFILE%/Saved Games/DCS.openbeta"
+    ],
+    "cli_flag": "--saved-games",
+    "selection": "explicit --saved-games required; no implicit target selection",
+    "scripts_root": "Scripts",
+    "logs_root": "Logs/AESA"
+  },
+  "products": {
+    "aa_export": {
+      "source": "src/export/aesa_export.lua",
+      "script": "Scripts/AESA/aesa_export.lua",
+      "manifest": "Scripts/AESA/manifest.json",
+      "marker_begin": "--[[ AESA EXPORT BEGIN ]]",
+      "marker_end": "--[[ AESA EXPORT END ]]",
+      "backup_suffix": ".bak-aesa",
+      "diag_log": "Scripts/AESA/export_diag.log"
+    },
+    "sar_export": {
+      "source": "src/export/aesa_sar_export.lua",
+      "script": "Scripts/AESA-SAR/aesa_sar_export.lua",
+      "manifest": "Scripts/AESA-SAR/manifest.json",
+      "marker_begin": "AESA SAR BEGIN",
+      "marker_end": "AESA SAR END",
+      "backup_suffix": ".bak-aesa",
+      "diag_log": "Scripts/AESA-SAR/export_diag.log"
+    },
+    "sar_scene": {
+      "sources": [
+        "src/hooks/aesa_sar_scene_hook.lua",
+        "src/scene/aesa_sar_mission.lua"
+      ],
+      "script": "Scripts/Hooks/aesa_sar_scene_hook.lua",
+      "manifest": "Scripts/AESA-SAR/scene-manifest.json",
+      "backup_suffix": ".bak-aesa"
+    },
+    "agradar": {
+      "sources": [
+        "src/hooks/aesa_agradar_hook.lua",
+        "src/native/agradar_probe/aesa_agradar.c"
+      ],
+      "hook": "Scripts/Hooks/aesa_agradar_hook.lua",
+      "dll": "Scripts/AESA-AGR/aesa_agradar.dll",
+      "manifest": "Scripts/AESA-AGR/agr-manifest.json",
+      "dist_dll": "dist/dev/aesa_agradar.dll",
+      "backup_suffix": ".bak-aesa",
+      "log_dir": "Logs/AESA/AGR"
+    },
+    "fc": {
+      "sources": [
+        "src/hooks/aesa_fc_hook.lua",
+        "src/native/fc_probe/aesa_fc.c"
+      ],
+      "hook": "Scripts/Hooks/aesa_fc_hook.lua",
+      "trace_dll": "Scripts/AESA-FC/aesa_fc_trace.dll",
+      "inject_dll": "Scripts/AESA-FC/aesa_fc_inject.dll",
+      "trace_dist_dll": "dist/dev/aesa_fc_trace.dll",
+      "inject_dist_dll": "dist/dev/aesa_fc_inject.dll",
+      "manifest": "Scripts/AESA-FC/fc-manifest.json",
+      "backup_suffix": ".bak-aesa",
+      "experiment_config": "Scripts/AESA-FC/fc_experiment.lua",
+      "log_files": [
+        "Logs/AESA/fc_trace.log",
+        "Logs/AESA/fc_native.log",
+        "Logs/AESA/fc_msl_pos.log"
+      ]
+    }
+  },
+  "native": {
+    "agradar_dll_name": "aesa_agradar.dll",
+    "fc_trace_dll_name": "aesa_fc_trace.dll",
+    "fc_inject_dll_name": "aesa_fc_inject.dll",
+    "fc_log_dir": "%USERPROFILE%/Saved Games/DCS/Logs/AESA"
+  },
+  "sources": {
+    "saved_games": {
+      "file": "scripts/install_sar.cjs",
+      "line": 90,
+      "class": "setting",
+      "note": "所有安装器要求显式 --saved-games（install_sar.cjs:90；install_export.py:314）"
+    },
+    "saved_games.scripts_root": {
+      "file": "scripts/install_sar.cjs",
+      "line": 9,
+      "class": "setting",
+      "note": "Scripts/ 下按产品分子目录"
+    },
+    "saved_games.logs_root": {
+      "file": "src/hooks/aesa_agradar_hook.lua",
+      "line": 74,
+      "class": "setting",
+      "note": "Logs/AESA；AGR 子目录 AGR"
+    },
+    "products.aa_export": {
+      "file": "scripts/install_export.py",
+      "line": 43,
+      "class": "setting",
+      "note": "Scripts/Export.lua 标记块 + Scripts/AESA/aesa_export.lua；备份后缀 .bak-aesa（install_export.py:167）"
+    },
+    "products.sar_export": {
+      "file": "scripts/install_sar.cjs",
+      "line": 15,
+      "class": "setting",
+      "note": "Scripts/AESA-SAR；备份 .bak-aesa（install_common.BACKUP_SUFFIX）"
+    },
+    "products.sar_scene": {
+      "file": "scripts/install_sar_scene.cjs",
+      "line": 15,
+      "class": "setting",
+      "note": "Hook 与 scene-manifest 成对部署；mission 源内嵌进 hook"
+    },
+    "products.agradar": {
+      "file": "scripts/install_agradar_probe.cjs",
+      "line": 19,
+      "class": "setting",
+      "note": "Scripts/AESA-AGR；备份 .bak-aesa（install_common）"
+    },
+    "products.fc": {
+      "file": "scripts/install_fc_probe.cjs",
+      "line": 21,
+      "class": "setting",
+      "note": "Scripts/AESA-FC；默认 trace，--with-inject 才纳入 inject；备份 .bak-aesa"
+    },
+    "products.fc.log_files": {
+      "file": "src/native/fc_probe/aesa_fc.c",
+      "line": 390,
+      "class": "setting",
+      "note": "fc_trace.log / fc_native.log / fc_msl_pos.log 均在 Logs\\AESA"
+    },
+    "native.agradar_dll_name": {
+      "file": "src/hooks/aesa_agradar_hook.lua",
+      "line": 54,
+      "class": "setting",
+      "note": "AGR 探针 DLL 文件名"
+    },
+    "native.fc_trace_dll_name": {
+      "file": "src/hooks/aesa_fc_hook.lua",
+      "line": 218,
+      "class": "setting",
+      "note": "FC 只读 trace DLL 文件名（默认加载）"
+    },
+    "native.fc_inject_dll_name": {
+      "file": "src/hooks/aesa_fc_hook.lua",
+      "line": 218,
+      "class": "setting",
+      "note": "FC 写注入 DLL 文件名；仅显式 mode=1 且 profile/inject 通过时加载"
+    },
+    "native.fc_log_dir": {
+      "file": "src/native/fc_probe/aesa_fc.c",
+      "line": 107,
+      "class": "setting",
+      "note": "hook 传入 writedir 下的 Logs\\AESA；原生 getenv 默认仅用于独立烟测兜底"
+    }
+  },
+  "known_conflicts": [
+    {
+      "id": "js_generated_location",
+      "topic": "JS 生成配置落点：计划写 tools/generated，架构 A-13 推荐 src/shared",
+      "evidence": [
+        "docs/refactor-plan.md:376-377 lists src/shared/config.lua/protocol.lua and tools/generated/config.cjs",
+        "docs/architecture.md:661-669 notes the JS generated location is not final",
+        "docs/architecture.md:887-895 A-13 recommends src/shared/config.cjs",
+        "this task explicitly requires tools/generated/config.cjs"
+      ],
+      "resolution": "Gate 2 按任务要求生成 tools/generated/config.cjs；Gate 5 已迁到 src/shared/config.cjs 并删除旧路径，tools 与测试统一 require 新落点，src/sar_core 不 import tools/"
+    },
+    {
+      "id": "fc_backup_suffix",
+      "topic": "FC 安装器复用 SAR 的 .bak-aesa-sar 后缀",
+      "evidence": [
+        "Gate 0–5: scripts/install_fc_probe.cjs 从 install_sar.cjs 复用 backup()",
+        "Gate 6: scripts/install_common.cjs:11 BACKUP_SUFFIX=.bak-aesa"
+      ],
+      "resolution": "Gate 6 已统一为 .bak-aesa（install_common.BACKUP_SUFFIX）；旧 .bak-aesa-sar 备份保留但不再新写"
+    },
+    {
+      "id": "scene_backup_suffix",
+      "topic": "场景 Hook 安装器复用 SAR 备份后缀",
+      "evidence": [
+        "Gate 0–5: scripts/install_sar_scene.cjs 从 install_sar.cjs 复用 backup()",
+        "Gate 6: install_sar_scene.cjs 直接 require install_common.cjs"
+      ],
+      "resolution": "Gate 6 已统一为 .bak-aesa；场景 Hook 改用 install_common"
+    },
+    {
+      "id": "fc_native_hardcoded_saved_games",
+      "topic": "FC 原生 DLL 硬编码 Saved Games\\DCS，与安装器 --saved-games 可指向 openbeta/临时目录不一致",
+      "evidence": [
+        "src/native/fc_probe/aesa_fc.c:107 getenv USERPROFILE + Saved Games\\DCS\\Logs\\AESA（独立 ctypes 烟测兜底）",
+        "src/hooks/aesa_fc_hook.lua:309 pcall(init,base..\"Logs\\AESA\") 总是传 writedir"
+      ],
+      "resolution": "hook 总是把 writedir 下的 Logs\\AESA 传给 init；原生 getenv 分支只用于独立 ctypes 烟测，不影响 --saved-games 部署"
+    }
+  ]
+}

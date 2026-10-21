@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AESA FCR A/A Cockpit Preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #06090b; color: #b7c9c0;
+    font: 12px/1.5 "Consolas", "Cascadia Mono", "Microsoft YaHei", monospace;
+    min-height: 100vh;
+  }
+  header {
+    display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline;
+    padding: 10px 16px; background: #0b1113; border-bottom: 1px solid #1c2a25;
+  }
+  header h1 { margin: 0; font-size: 15px; color: #e6f2e8; font-weight: 600; letter-spacing: .06em; }
+  header .sub { color: #6f8b7e; }
+  header .tag { color: #ffd34d; border: 1px solid #4f4522; padding: 0 6px; border-radius: 2px; }
+  main { display: flex; align-items: flex-start; gap: 16px; padding: 16px; max-width: 1280px; margin: 0 auto; }
+  #display { flex: 1 1 560px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  #mfd {
+    width: min(72vh, 620px); max-width: 100%; aspect-ratio: 1 / 1; display: block;
+    background: #101512; border: 1px solid #303b32;
+    box-shadow: 0 0 0 1px #060a08 inset, 0 16px 40px rgba(0,0,0,.45);
+  }
+  #caption { color: #597366; text-align: center; max-width: 680px; }
+  #caption b { color: #9fc7ad; font-weight: 500; }
+  aside {
+    flex: 0 0 360px; display: flex; flex-direction: column; gap: 10px;
+    background: #0b1113; border: 1px solid #1c2a25; padding: 12px;
+    max-height: calc(100vh - 90px); overflow: auto;
+  }
+  fieldset { border: 1px solid #24362d; margin: 0; padding: 8px 10px 10px; }
+  legend { color: #93b7a2; padding: 0 4px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 5px 0; }
+  label { cursor: pointer; user-select: none; }
+  select, input[type="text"], textarea {
+    background: #07100c; color: #cfe5d7; border: 1px solid #2a4436;
+    font: inherit; padding: 2px 4px;
+  }
+  select { min-width: 76px; }
+  input[type="range"] { width: 150px; accent-color: #66e58a; }
+  output { min-width: 36px; color: #9fc7ad; }
+  button {
+    background: #102019; color: #b8efc9; border: 1px solid #2d5b40;
+    font: inherit; padding: 3px 10px; cursor: pointer; border-radius: 2px;
+  }
+  button:hover { background: #173326; }
+  button.primary { border-color: #4b9c68; color: #e4ffe9; }
+  textarea { width: 100%; resize: vertical; min-height: 150px; line-height: 1.35; }
+  .hint { color: #668276; min-height: 2.4em; }
+  .hint.err { color: #ff8c7d; }
+  .swatches { display: flex; gap: 12px; flex-wrap: wrap; color: #69867a; }
+  .sw { display: inline-flex; align-items: center; gap: 4px; }
+  .sw i { width: 9px; height: 9px; display: inline-block; border: 1px solid currentColor; }
+  .checkline { display: flex; gap: 14px; flex-wrap: wrap; }
+  @media (max-width: 980px) {
+    main { flex-direction: column; }
+    aside { flex: 1 1 auto; width: 100%; max-height: none; }
+    #mfd { width: min(88vw, 560px); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>AESA COCKPIT DISPLAY</h1>
+  <span class="sub">F-16C FCR A/A 覆盖页 · 按 DCS 原生 FCR 页与手册标注图复原</span>
+  <span class="tag">NOT DCS RENDER</span>
+  <span class="sub">坐标取自原生页面脚本；航迹航向仅预览演示</span>
+</header>
+
+<main>
+  <section id="display">
+    <canvas id="mfd" width="960" height="960" aria-label="AESA FCR A/A preview"></canvas>
+    <div id="caption">
+      <b>按参考资料复原的显示层</b>：OSB 标签、左右刻度与插入符、TDC 截获光标、牛眼/转向点符号、
+      底部格式行均按 DCS F-16C 原生 FCR A/A 页的坐标重画；SEARCH 实心方块 / TRACK 旋转框 /
+      STT 黄框与手册符号图一致。航迹航向、STT 顶行读数、光标扫描高度与 DLZ/M-pole 数值为
+      预览演示近似（航向不进 state.txt 协议）；字体线宽为网页近似，最终以 DCS stroke font 为准。
+    </div>
+  </section>
+
+  <aside>
+    <fieldset>
+      <legend>雷达状态</legend>
+      <div class="row">
+        <label>模式
+          <select id="mode"><option selected>RWS</option><option>TWS</option><option>STT</option></select>
+        </label>
+        <label>量程
+          <select id="range"><option>160</option><option>80</option><option selected>40</option><option>20</option><option>10</option><option>5</option></select>
+        </label>
+        <label>方位
+          <select id="az"><option selected>60</option><option>30</option><option>10</option></select>
+        </label>
+      </div>
+      <div class="row">
+        <label>BARS
+          <select id="bars"><option selected>4</option><option>3</option><option>2</option><option>1</option></select>
+        </label>
+        <label>PRF
+          <select id="prf"><option selected>HI</option><option>MED</option><option>ILV</option></select>
+        </label>
+        <label>ALT
+          <select id="alt"><option>10K</option><option selected>20K</option><option>30K</option><option>40K</option></select>
+        </label>
+        <label>武器
+          <select id="weapon"><option selected>NONE</option><option>AIM-120</option></select>
+        </label>
+      </div>
+      <div class="row">
+        <label>波束方位 <input id="beam" type="range" min="-60" max="60" step="1" value="12"></label>
+        <output id="beamOut">+12</output>
+        <label>天线俯仰 <input id="el" type="range" min="-60" max="60" step="1" value="10"></label>
+        <output id="elOut">+10</output>
+      </div>
+      <div class="row">
+        <label>光标方位 <input id="curAz" type="range" min="-60" max="60" step="1" value="25"></label>
+        <output id="curAzOut">+25</output>
+        <label>光标距离 <input id="curRange" type="range" min="0" max="100" step="1" value="55"></label>
+        <output id="curRangeOut">55%</output>
+      </div>
+      <div class="row">
+        <label>航迹数 <input id="trackCount" type="range" min="0" max="8" step="1" value="4"></label>
+        <output id="trackOut">4</output>
+        <label>STT
+          <select id="stt"></select>
+        </label>
+      </div>
+      <div class="checkline">
+        <label><input id="bullseye" type="checkbox" checked> 牛眼</label>
+        <label><input id="iffScan" type="checkbox"> IFF SCAN</label>
+        <label><input id="soi" type="checkbox"> SOI</label>
+        <label><input id="nodata" type="checkbox"> 无数据</label>
+        <label><input id="scan" type="checkbox"> 扫描动画</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>显示辅助</legend>
+      <div class="checkline">
+        <label><input id="osb" type="checkbox"> OSB 安全区</label>
+        <label><input id="coords" type="checkbox"> 坐标辅助</label>
+        <label><input id="labels" type="checkbox"> 航迹标签</label>
+      </div>
+      <div class="row swatches">
+        <span class="sw" style="color:#cfe0d4"><i></i>数据/标签</span>
+        <span class="sw" style="color:#3cc7a2"><i></i>刻度/插入符</span>
+        <span class="sw" style="color:#38c2d8"><i></i>地平线/牛眼</span>
+        <span class="sw" style="color:#5a9bff"><i></i>上限高度</span>
+        <span class="sw" style="color:#ffd34d"><i></i>STT/告警</span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>state.txt（与座舱桥同协议）</legend>
+      <textarea id="stateText" spellcheck="false"></textarea>
+      <div class="row">
+        <button id="apply" class="primary">应用文本</button>
+        <button id="sync">从控件同步</button>
+        <button id="copy">复制</button>
+        <button id="png">导出 PNG</button>
+        <button id="reset">重置</button>
+      </div>
+      <div id="hint" class="hint"></div>
+    </fieldset>
+  </aside>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const canvas = $("mfd");
+const ctx = canvas.getContext("2d");
+const W = 480, H = 480, CX = 240, CY = 240;
+
+// 调色近似 DCS F-16C MFD
+const COL = {
+  text: "#cfe0d4",   // 数据/文字
+  dim: "#7e998a",    // 次级
+  teal: "#3cc7a2",   // 刻度/距离标/插入符
+  cyan: "#38c2d8",   // 地平线/牛眼/扫描限
+  blue: "#5a9bff",   // 上限扫描高度
+  yellow: "#ffd34d"  // STT/告警
+};
+// DCS stroke 字号 10_14 / 8_12 的网页近似（逻辑 px，画布按 2x 渲染）
+const FONT = { L: 20, S: 17 };
+
+const SAMPLES = [
+  { az: -22, range: 30, vc: -350, alt: 24000 },
+  { az: 8, range: 14, vc: -480, alt: 18500 },
+  { az: 35, range: 28, vc: 120, alt: 31000 },
+  { az: -8, range: 22, vc: 60, alt: 22000 },
+  { az: 48, range: 36, vc: -220, alt: 27000 },
+  { az: -40, range: 18, vc: -150, alt: 15000 },
+  { az: 18, range: 34, vc: 80, alt: 28000 },
+  { az: -15, range: 8, vc: -500, alt: 20000 }
+];
+// 与 SAMPLES 并行的固定演示航向（度），仅用于 TRACK/STT 符号旋转与 STT 顶行读数
+const HEADINGS = [140, 265, 40, 95, 205, 330, 70, 350];
+
+function defaultState() {
+  return {
+    valid: true, seq: 1, mode: "RWS", range: 40, az: 60, bars: 4,
+    prf: "HI", alt: "20K", scan: "AUTO", beam: 12, hz: "10.0",
+    el: 10, curAz: 25, curRange: 55, weapon: "NONE",
+    bullseye: true, iffScan: false, tracks: []
+  };
+}
+let state = defaultState();
+const ui = { osb: false, coords: false, labels: false, scan: false, soi: false };
+let scanPhase = 0;
+
+function X(x) { return CX + x; }
+function Y(y) { return CY - y; }
+function line(x1, y1, x2, y2, color = COL.text, width = 1, dash = null) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath();
+  ctx.moveTo(X(x1), Y(y1));
+  ctx.lineTo(X(x2), Y(y2));
+  ctx.stroke();
+  ctx.restore();
+}
+function box(x, y, w, h, color = COL.text, width = 1) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.strokeRect(X(x), Y(y + h), w, h);
+  ctx.restore();
+}
+function circle(x, y, r, color = COL.text, width = 1, fill = null) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(X(x), Y(y), r, 0, Math.PI * 2);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.stroke();
+  ctx.restore();
+}
+function poly(points, color = COL.text, width = 1, fill = null) {
+  ctx.save();
+  ctx.beginPath();
+  points.forEach(([x, y], i) => { if (i) ctx.lineTo(X(x), Y(y)); else ctx.moveTo(X(x), Y(y)); });
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.stroke();
+  ctx.restore();
+}
+function text(value, x, y, opt = {}) {
+  const size = opt.size || FONT.L;
+  ctx.save();
+  ctx.font = `${opt.bold ? "600 " : ""}${size}px "Consolas","Cascadia Mono","Microsoft YaHei",monospace`;
+  ctx.fillStyle = opt.color || COL.text;
+  ctx.textAlign = opt.align || "left";
+  ctx.textBaseline = opt.baseline || "middle";
+  ctx.fillText(String(value), X(x), Y(y));
+  ctx.restore();
+}
+const pad2 = n => String(Math.max(0, Math.round(n))).padStart(2, "0");
+const pad3 = n => String(Math.max(0, Math.round(n))).padStart(3, "0");
+const signed = v => (v >= 0 ? "+" : "") + v;
+
+function addTracks(n) {
+  state.tracks = [];
+  for (let i = 0; i < n; i++) {
+    const s = SAMPLES[i % SAMPLES.length];
+    state.tracks.push({ id: i + 1, az: s.az, range: s.range, vc: s.vc, alt: s.alt, status: "SEARCH" });
+  }
+}
+function applyStt(value) {
+  const n = Number(value);
+  state.tracks.forEach(t => { if (t.status === "STT") t.status = "SEARCH"; });
+  if (n > 0 && state.tracks[n - 1]) state.tracks[n - 1].status = "STT";
+}
+const sttTrack = () => state.tracks.find(t => t.status === "STT");
+function rebuildSttSelect() {
+  const select = $("stt");
+  const old = Number(select.value || 0);
+  select.innerHTML = '<option value="0">OFF</option>' +
+    state.tracks.map(t => `<option value="${t.id}">${String(t.id).padStart(2, "0")}</option>`).join("");
+  select.value = String(Math.min(old, state.tracks.length));
+}
+function serialize() {
+  const lines = [
+    "AESA1", `seq=${state.seq}`, `valid=${state.valid ? 1 : 0}`,
+    `mode=${state.mode}`, `range=${state.range}`, `az=${state.az}`,
+    `bars=${state.bars}`, `prf=${state.prf}`, `alt=${state.alt}`,
+    `scan=${state.scan}`, `beam=${state.beam}`, `hz=${state.hz}`
+  ];
+  for (const t of state.tracks) lines.push(`track=${t.id},${t.az},${t.range},${t.vc},${t.alt},${t.status}`);
+  return lines.join("\n") + "\n";
+}
+function syncText(force = false) {
+  if (!force && document.activeElement === $("stateText")) return;
+  $("stateText").value = serialize();
+}
+function parseText(text) {
+  const raw = { tracks: [] };
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(/^([A-Za-z0-9_]+)=(.*)$/);
+    if (!m) continue;
+    if (m[1] === "track") {
+      const p = m[2].split(",");
+      if (p.length < 6) continue;
+      const id = Number(p[0]), az = Number(p[1]), range = Number(p[2]), vc = Number(p[3]), alt = Number(p[4]);
+      if ([id, az, range, vc, alt].some(v => !Number.isFinite(v))) continue;
+      raw.tracks.push({ id, az, range, vc, alt, status: String(p[5]).toUpperCase() });
+    } else raw[m[1]] = m[2];
+  }
+  if (!raw.seq) throw new Error("missing seq=");
+  return {
+    ...state,
+    valid: raw.valid === "1", seq: Number(raw.seq), mode: raw.mode || "RWS",
+    range: Number(raw.range) || 40, az: Number(raw.az) || 60, bars: Number(raw.bars) || 4,
+    prf: raw.prf || "HI", alt: raw.alt || "20K", scan: raw.scan || "AUTO",
+    beam: Number(raw.beam) || 0, hz: raw.hz || "10.0", tracks: raw.tracks.slice(0, 8)
+  };
+}
+function readControls() {
+  state.mode = $("mode").value;
+  state.range = Number($("range").value) || 40;
+  state.az = Number($("az").value) || 60;
+  state.bars = Number($("bars").value) || 4;
+  state.prf = $("prf").value;
+  state.alt = $("alt").value;
+  state.beam = Number($("beam").value);
+  state.el = Number($("el").value);
+  state.curAz = Number($("curAz").value);
+  state.curRange = Number($("curRange").value);
+  state.weapon = $("weapon").value;
+  state.bullseye = $("bullseye").checked;
+  state.iffScan = $("iffScan").checked;
+  state.valid = !$("nodata").checked;
+  ui.osb = $("osb").checked;
+  ui.coords = $("coords").checked;
+  ui.labels = $("labels").checked;
+  ui.scan = $("scan").checked;
+  ui.soi = $("soi").checked;
+  $("beamOut").textContent = signed(state.beam);
+  $("elOut").textContent = signed(state.el);
+  $("curAzOut").textContent = signed(state.curAz);
+  $("curRangeOut").textContent = state.curRange + "%";
+  $("trackOut").textContent = String(state.tracks.length);
+  syncText();
+  draw();
+}
+function applyText() {
+  try {
+    state = parseText($("stateText").value);
+    $("mode").value = state.mode;
+    $("range").value = String(state.range);
+    $("az").value = String(state.az);
+    $("bars").value = String(state.bars);
+    $("prf").value = state.prf;
+    $("alt").value = state.alt;
+    $("beam").value = String(Math.max(-60, Math.min(60, state.beam)));
+    $("nodata").checked = !state.valid;
+    $("trackCount").value = String(state.tracks.length);
+    $("trackOut").textContent = String(state.tracks.length);
+    rebuildSttSelect();
+    const stt = sttTrack();
+    $("stt").value = stt ? String(stt.id) : "0";
+    $("hint").textContent = "已应用 " + state.tracks.length + " 条航迹";
+    $("hint").className = "hint";
+    draw();
+  } catch (err) {
+    $("hint").textContent = "解析失败：" + err.message;
+    $("hint").className = "hint err";
+  }
+}
+
+// B-scope 投影：x = 方位 x2（|az|>63 不画），y = -240 + 距离/量程 x 480
+function trackXY(t) {
+  const max = Math.max(1, state.range);
+  return {
+    x: t.az * 2,
+    y: -240 + t.range / max * 480,
+    visible: Math.abs(t.az) <= 63 && t.range >= 0 && t.range <= max
+  };
+}
+function cursorXY() {
+  return {
+    x: Math.max(-120, Math.min(120, state.curAz * 2)),
+    y: -240 + Math.max(0, Math.min(100, state.curRange)) / 100 * 480
+  };
+}
+
+function drawBackground() {
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, "#1b211b");
+  g.addColorStop(.55, "#151a15");
+  g.addColorStop(1, "#101410");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  const rg = ctx.createRadialGradient(CX, CY, 50, CX, CY, 330);
+  rg.addColorStop(0, "rgba(0,0,0,0)");
+  rg.addColorStop(1, "rgba(0,0,0,.48)");
+  ctx.fillStyle = rg;
+  ctx.fillRect(0, 0, W, H);
+}
+// 四边细框，在 OSB 标签带留缺口
+// 边框不画：真实 MFD 的屏幕边缘就是物理 bezel，原生页面也不画边框；
+// 底部格式行在真实页面上由 SUBSET_BASE_MENU（原生 MFD 设备驱动）提供。
+function drawOsbLabels() {
+  // 顶行：原生 PB1-5 文本锚点 {x, 237} CenterTop（页内由 add_PB_label 自带
+  // 的遮罩在 SOI 框上开缺口，见 drawSoi）
+  const top = ["CRM", state.mode, "NORM", "OVRD", "CNTL"];
+  [-158, -79, 0, 79, 158].forEach((x, i) =>
+    text(top[i], x, 237, { align: "center", baseline: "top" }));
+  const bottom = ["SWAP", "FCR", "TEST", "DTE", "DCLT"];
+  [-158, -79, 0, 79, 158].forEach((x, i) => {
+    if (bottom[i] === "FCR") {
+      // 反色选中：白底黑字（实机由原生 MFD 设备的菜单参数驱动）
+      ctx.save();
+      ctx.fillStyle = COL.text;
+      ctx.fillRect(X(-102), Y(-216), 46, 21);
+      ctx.restore();
+      text("FCR", x, -237, { align: "center", baseline: "bottom", color: "#101512" });
+    } else {
+      text(bottom[i], x, -237, { align: "center", baseline: "bottom" });
+    }
+  });
+  text("CONT", 214, 135, { align: "center" });
+  // 左列量程档与增/减三角（原生 Decrement-symbol 空心三角，{0,±25}）
+  text(String(state.range), -220, 116, { align: "center" });
+  if (state.range < 160) poly([[-238, 132], [-202, 132], [-220, 150]], COL.text, 1.2);
+  if (state.range > 5) poly([[-238, 100], [-202, 100], [-220, 82]], COL.text, 1.2);
+  // 左列扫描参数（方位/仰角层数按档显示；锚点 {-237,-1}/{-237,-79} LeftCenter）
+  const azDigit = state.az >= 60 ? 6 : state.az >= 30 ? 3 : 1;
+  text("A", -237, 8, { align: "left" });
+  text(String(azDigit), -237, -10, { align: "left" });
+  text(String(state.bars), -237, -70, { align: "left" });
+  text("B", -237, -89, { align: "left" });
+  // IFF 模式读数（原生 MFD_FCR_IFF 锚点 {-235,-145} LeftCenter）
+  text("M4", -235, -145, { align: "left" });
+  if (state.iffScan) text("SCAN", -235, -165, { size: FONT.S, align: "left" });
+}
+function drawScales() {
+  for (let i = 0; i < 7; i++) {
+    const len = i === 3 ? 22 : 15;
+    const x = -120 + i * 40;
+    line(x, -212, x, -212 + len, COL.teal, 1.2);        // 底部方位刻度
+    const y = 120 - i * 40;
+    line(-197, y, -197 + len, y, COL.teal, 1.2);        // 左缘俯仰刻度
+  }
+  for (const y of [120, 0, -120]) line(224, y, 239, y, COL.teal, 1.2);  // 右缘距离标
+}
+function drawCarets() {
+  // 方位插入符：T 形（13 宽横杠 + 13 长竖茎向下，三线厚度），挂在天线方位处
+  const cx = Math.max(-120, Math.min(120, state.beam * 2));
+  for (const dy of [-1, 0, 1]) line(cx - 6.5, -218 + dy, cx + 6.5, -218 + dy, COL.teal, 1);
+  for (const dx of [-1, 0, 1]) line(cx + dx, -218, cx + dx, -231, COL.teal, 1);
+  // 俯仰插入符：同款旋转 90 度指向右，随天线俯仰移动
+  const cy = Math.max(-120, Math.min(120, state.el * 2));
+  for (const dx of [-1, 0, 1]) line(-203 + dx, cy - 6.5, -203 + dx, cy + 6.5, COL.teal, 1);
+  for (const dy of [-1, 0, 1]) line(-203, cy + dy, -190, cy + dy, COL.teal, 1);
+}
+function drawBscope() {
+  // 地平线：俯仰控件为正时线向下，两端向下小竖刻
+  const hy = Math.max(-120, Math.min(120, -state.el * 2));
+  line(-120, hy, 120, hy, COL.cyan, 1.2);
+  line(-120, hy, -120, hy - 8, COL.cyan, 1.2);
+  line(120, hy, 120, hy - 8, COL.cyan, 1.2);
+  // 方位扫描限（A6=±60 度 -> ±120 单位）
+  const lim = state.az / 60 * 120;
+  line(-lim, -200, -lim, 200, COL.cyan, 1.2);
+  line(lim, -200, lim, 200, COL.cyan, 1.2);
+  // 牛眼符号（演示固定位）
+  for (const r of [1, 5, 10]) circle(-60, 150, r, COL.cyan, 1.1);
+  // 转向点 wedding cake（顶点取自原生 addFcrSteerpoint，演示固定位）
+  const verts = [[0, -10], [12.5, -10], [12.5, -5], [7.5, -5], [7.5, 5], [2.5, 5], [2.5, 10],
+    [-2.5, 10], [-2.5, 5], [-7.5, 5], [-7.5, -5], [-12.5, -5], [-12.5, -10]];
+  poly(verts.map(([dx, dy]) => [-15 + dx, 105 + dy]), COL.text, 1.2, "rgba(207,224,212,.25)");
+}
+function drawCursor() {
+  // TDC 截获光标（STT 时不显示）；高度读数为演示近似：由 ALT 档、光标距离比与 BARS 推算
+  const { x: cx, y: cy } = cursorXY();
+  line(cx - 15, cy - 15, cx - 15, cy + 15, COL.text, 1.4);
+  line(cx + 15, cy - 15, cx + 15, cy + 15, COL.text, 1.4);
+  const altK = parseInt(state.alt, 10) || 20;
+  const f = Math.max(0, Math.min(100, state.curRange)) / 100;
+  const half = altK * (1 - f) * 0.35 + state.bars;
+  text(pad2(Math.min(99, altK + half)), cx + 20, cy + 17, { color: COL.blue });
+  text(pad2(Math.max(1, altK - half)), cx + 20, cy - 17);
+}
+function drawRotatedTrack(p, hdg, altTxt) {
+  // TRACK：12x12 空心方块按航向旋转（0 度=机头向上）+ 前方 10 长机头线
+  ctx.save();
+  ctx.translate(X(p.x), Y(p.y));
+  ctx.rotate(hdg * Math.PI / 180);
+  ctx.strokeStyle = COL.text;
+  ctx.lineWidth = 1.4;
+  ctx.strokeRect(-6, -6, 12, 12);
+  ctx.beginPath();
+  ctx.moveTo(0, -6);
+  ctx.lineTo(0, -16);
+  ctx.stroke();
+  ctx.restore();
+  text(altTxt, p.x, p.y - 19, { align: "center", baseline: "top" });
+}
+function drawTracks() {
+  if (!state.valid) {
+    text("NO DATA", 0, 20, { size: 26, align: "center", color: COL.yellow });
+    return;
+  }
+  const vis = state.tracks.map(t => ({ t, p: trackXY(t) })).filter(e => e.p.visible);
+  const c = cursorXY();
+  // TUC：离 TDC 光标最近的 SEARCH 航迹显示高度
+  let tuc = null;
+  if (!sttTrack()) {
+    let best = Infinity;
+    for (const e of vis) {
+      if (e.t.status !== "SEARCH") continue;
+      const d = (e.p.x - c.x) ** 2 + (e.p.y - c.y) ** 2;
+      if (d < best) { best = d; tuc = e.t.id; }
+    }
+  }
+  for (const { t, p } of vis) {
+    const hdg = HEADINGS[(t.id - 1) % HEADINGS.length];
+    const altTxt = pad2(t.alt / 1000);
+    if (t.status === "STT") {
+      box(p.x - 9, p.y - 9, 18, 18, COL.yellow, 1.6);
+      circle(p.x, p.y, 16, COL.yellow, 1.2);
+      line(p.x, p.y + 13, p.x, p.y + 23, COL.yellow, 1.4);
+      text(altTxt, p.x, p.y - 22, { align: "center", baseline: "top", color: COL.yellow });
+    } else if (t.status === "TRACK") {
+      drawRotatedTrack(p, hdg, altTxt);
+    } else {
+      ctx.save();
+      ctx.fillStyle = COL.text;
+      ctx.fillRect(X(p.x - 5), Y(p.y + 5), 10, 10);
+      ctx.restore();
+      if (t.vc < -50) line(p.x, p.y - 5, p.x, p.y - 15, COL.text, 1.4);       // 热（朝向本机）
+      else if (t.vc > 50) line(p.x, p.y + 5, p.x, p.y + 15, COL.text, 1.4);   // 冷
+      if (t.id === tuc) text(altTxt, p.x, p.y - 17, { align: "center", baseline: "top" });
+    }
+    if (ui.labels) text(pad2(t.range), p.x + 9, p.y + 8, { size: 13, color: COL.dim });
+  }
+}
+function drawSttOverlay(t) {
+  // 顶行 STT 数据（演示近似：方位角/地面航迹/CAS 由演示航向与 vc 推算）
+  const h = HEADINGS[(t.id - 1) % HEADINGS.length];
+  const a = ((h - t.az + 180) % 360 + 360) % 360;
+  const aspect = a <= 180 ? Math.round(a) + "R" : Math.round(360 - a) + "L";
+  const cas = 380 + Math.round(Math.abs(t.vc) / 10);
+  const closure = (t.vc < 0 ? "+" : "") + Math.round(-t.vc) + "K";
+  text(aspect, -218, 214, { size: FONT.S, baseline: "top" });
+  text(pad3(h) + "°", -158, 214, { size: FONT.S, baseline: "top" });
+  text(String(cas), 79, 214, { size: FONT.S, align: "center", baseline: "top" });
+  text(closure, 198, 214, { size: FONT.S, align: "right", baseline: "top" });
+  if (state.weapon !== "AIM-120") return;
+  circle(0, 0, 131, COL.text, 1);     // ASE 圆
+  circle(15, -20, 5, COL.text, 1.2);  // ASC 点
+  drawDlz(t);
+}
+function drawDlz(t) {
+  // 演示近似：线性导弹比例尺四条刻度按量程固定比例（RMax1/RMax2/RMin2/RMin1），
+  // M-pole/F-pole 按目标距离的 0.8x/1.05x 取整
+  const bot = -120, span = 234;
+  line(195, bot, 195, bot + span, COL.text, 1.2);
+  line(215, bot, 215, bot + span, COL.text, 1.2);
+  for (const f of [0.92, 0.75, 0.35, 0.15]) line(195, bot + f * span, 215, bot + f * span, COL.text, 1.2);
+  const frac = Math.max(0, Math.min(1, t.range / Math.max(1, state.range)));
+  const y = bot + frac * span;
+  poly([[195, y + 5], [195, y - 5], [188, y]], COL.text, 1.2);  // 目标距离左指三角
+  const rng = Math.round(t.range);
+  text(String(rng), 183, y, { size: FONT.S, align: "right" });
+  text(Math.round(rng * 0.8) + "M", 183, y - 17, { size: FONT.S, align: "right" });
+  text(Math.round(rng * 1.05) + "F", 183, y - 34, { size: FONT.S, align: "right" });
+  text("T2", 183, y - 51, { size: FONT.S, align: "right" });
+}
+function drawBullseyeLos() {
+  if (state.bullseye) {
+    // 牛眼 LOS：演示值由牛眼符号相对本机（0,-240）的方位/距离算出
+    circle(-213, -194, 17, COL.cyan, 1.2);
+    const dx = -60, dy = 150 - (-240);
+    const brg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+    const rng = Math.hypot(dx, dy) / 480 * Math.max(1, state.range);
+    text(pad2(rng), -213, -194, { size: FONT.S, align: "center", color: COL.cyan });
+    text(pad3(brg), -213, -225, { size: FONT.S, align: "center", color: COL.cyan });
+    poly([[-217, -176], [-209, -176], [-213, -170]], COL.cyan, 1, COL.cyan);  // 顶部小三角指航向 0
+  } else {
+    // 本机参照符（小飞机剪影）+ 操纵十字
+    line(-215, -230, -215, -190, COL.cyan, 1.2);
+    line(-235, -210, -195, -210, COL.cyan, 1.2);
+    line(-215, -217, -215, -203, COL.cyan, 1.6);
+    line(-223, -208, -207, -208, COL.cyan, 1.6);
+    line(-219, -214, -211, -214, COL.cyan, 1.6);
+  }
+}
+function drawBottomData() {
+  // 光标相对转向点的方位/距离（演示计算；原生锚点 {-235,-119} LeftCenter）
+  const c = cursorXY();
+  const dx = c.x - (-15), dy = c.y - 105;
+  const brg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+  const rng = Math.hypot(dx, dy) / 480 * Math.max(1, state.range);
+  text(pad3(brg) + " " + pad2(rng), -235, -119, { size: FONT.S, align: "left" });
+  text("ALL", -176, -208, { size: FONT.S });
+  if (state.weapon === "AIM-120") text("RDY", 0, -195, { align: "center" });
+}
+// SOI 选中框：原生 SUBSET_SOI 的 480 描边框（线宽 2.9），经标签处的缺口由
+// 原生裁剪遮罩产生——顶行 PB1-5（宽 列数x15）、底行 SWAP/FCR/TEST/DTE/DCLT、
+// 左列量程簇（72 高）/A6/4B/M4 与右侧 CONT 各开一段。
+function drawSoi() {
+  if (!ui.soi) return;
+  const c = COL.text, w = 3;
+  // 顶边（缺口：各标签宽的一半）
+  const topGaps = [[-180.5, -135.5], [-109, -49], [-30, 30], [49, 109], [135.5, 180.5]];
+  lineSegs(-240, 240, 240, topGaps, c, w);
+  // 底边
+  const botGaps = [[-188, -128], [-101.5, -56.5], [-30, 30], [56.5, 101.5], [128, 188]];
+  lineSegs(-240, -240, -240, botGaps, c, w);
+  // 左边（量程簇 80..152、A6 -20..18、4B -98..-60、M4 -155..-135）
+  const leftGaps = [[80, 152], [-20, 18], [-98, -60], [-155, -135]];
+  lineSegs(-240, -240, 240, leftGaps, c, w, true);
+  // 右边（CONT 125..145）
+  lineSegs(240, -240, 240, [[125, 145]], c, w, true);
+}
+// 沿一条水平/竖直边画扣除缺口后的线段
+function lineSegs(fixed, from, to, gaps, color, width, vertical) {
+  const sorted = gaps.slice().sort((a, b) => a[0] - b[0]);
+  let cur = from;
+  for (const [g0, g1] of sorted) {
+    if (g0 > cur) drawEdgeSeg(fixed, cur, g0, color, width, vertical);
+    cur = Math.max(cur, g1);
+  }
+  if (cur < to) drawEdgeSeg(fixed, cur, to, color, width, vertical);
+}
+function drawEdgeSeg(fixed, a, b, color, width, vertical) {
+  if (vertical) line(fixed, a, fixed, b, color, width);
+  else line(a, fixed, b, fixed, color, width);
+}
+function drawAids() {
+  if (ui.coords) {
+    line(-240, 0, 240, 0, "rgba(126,153,138,.35)", 1, [4, 4]);
+    line(0, -240, 0, 240, "rgba(126,153,138,.35)", 1, [4, 4]);
+    text("0,0", 4, -2, { size: 12, color: COL.dim });
+  }
+  if (!ui.osb) return;
+  ctx.save();
+  ctx.setLineDash([2, 3]);
+  ctx.strokeStyle = "rgba(180,220,190,.35)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(X(-226), Y(226), 452, 452);
+  ctx.restore();
+  const xs = [-158, -79, 0, 79, 158], ys = [155, 77, -1, -79, -157];
+  const c = "rgba(180,220,190,.55)";
+  for (let i = 0; i < 5; i++) {
+    text("T" + (i + 1), xs[i], 234, { size: 12, align: "center", color: c });
+    text("B" + (i + 1), xs[i], -234, { size: 12, align: "center", color: c });
+    text("L" + (5 - i), -230, ys[i], { size: 12, align: "right", color: c });
+    text("R" + (i + 1), 230, ys[i], { size: 12, color: c });
+  }
+}
+function draw() {
+  drawBackground();
+  drawScales();
+  drawBscope();
+  const stt = state.valid ? sttTrack() : null;
+  if (!stt) drawCursor();
+  drawTracks();
+  if (stt) drawSttOverlay(stt);
+  drawCarets();
+  drawBullseyeLos();
+  drawBottomData();
+  drawOsbLabels();
+  drawSoi();
+  drawAids();
+}
+
+function tick() {
+  if (!ui.scan) return;
+  scanPhase += 0.8;
+  if (!state.valid) return;
+  state.beam = Math.round(Math.sin(scanPhase * 0.05) * Math.min(60, state.az));
+  $("beam").value = String(state.beam);
+  $("beamOut").textContent = signed(state.beam);
+  state.seq++;
+  syncText();
+  draw();
+}
+
+function setControlsFromState() {
+  $("mode").value = state.mode;
+  $("range").value = String(state.range);
+  $("az").value = String(state.az);
+  $("bars").value = String(state.bars);
+  $("prf").value = state.prf;
+  $("alt").value = state.alt;
+  $("weapon").value = state.weapon;
+  $("beam").value = String(state.beam);
+  $("el").value = String(state.el);
+  $("curAz").value = String(state.curAz);
+  $("curRange").value = String(state.curRange);
+  $("trackCount").value = String(state.tracks.length);
+  $("bullseye").checked = state.bullseye;
+  $("iffScan").checked = state.iffScan;
+  $("nodata").checked = !state.valid;
+  $("soi").checked = ui.soi;
+}
+function init() {
+  addTracks(4);
+  rebuildSttSelect();
+  syncText();
+  for (const id of ["mode", "range", "az", "bars", "prf", "alt", "weapon"]) $(id).addEventListener("change", readControls);
+  for (const id of ["beam", "el", "curAz", "curRange"]) $(id).addEventListener("input", readControls);
+  $("trackCount").addEventListener("input", () => {
+    addTracks(Number($("trackCount").value));
+    rebuildSttSelect();
+    $("stt").value = "0";
+    readControls();
+  });
+  $("stt").addEventListener("change", () => {
+    applyStt(Number($("stt").value));
+    syncText();
+    draw();
+  });
+  for (const id of ["nodata", "bullseye", "iffScan", "soi", "osb", "coords", "labels", "scan"]) {
+    $(id).addEventListener("change", () => {
+      readControls();
+      if (id === "scan" && $("scan").checked) scanPhase = 0;
+    });
+  }
+  $("apply").addEventListener("click", applyText);
+  $("sync").addEventListener("click", () => {
+    readControls();
+    syncText(true);
+    $("hint").textContent = "已从控件同步";
+    $("hint").className = "hint";
+  });
+  $("copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText($("stateText").value);
+      $("hint").textContent = "state.txt 已复制";
+    } catch {
+      $("stateText").select();
+      document.execCommand("copy");
+      $("hint").textContent = "已选中并复制";
+    }
+    $("hint").className = "hint";
+  });
+  $("png").addEventListener("click", () => {
+    canvas.toBlob(blob => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "aesa-cockpit-preview.png";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }, "image/png");
+  });
+  $("reset").addEventListener("click", () => {
+    state = defaultState();
+    ui.osb = false; ui.coords = false; ui.labels = false; ui.scan = false; ui.soi = false;
+    addTracks(4);
+    rebuildSttSelect();
+    $("stt").value = "0";
+    $("osb").checked = false; $("coords").checked = false; $("labels").checked = false;
+    $("scan").checked = false;
+    setControlsFromState();
+    readControls();
+    $("hint").textContent = "已重置";
+    $("hint").className = "hint";
+  });
+  draw();
+  setInterval(tick, 100);
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,470 @@
+{
+  "schema": 1,
+  "owner": "radar",
+  "radar": {
+    "lambda_m": 0.03,
+    "ptx_avg_w": 2000.0,
+    "ptx_peak_w": 20000.0,
+    "gain0_db": 37.0,
+    "nf_db": 3.0,
+    "loss_db": 6.0,
+    "pfa": 1e-6,
+    "integration_efficiency": 1.0,
+    "coherence_time_s": false,
+    "fluctuation_hold_s": 0.25,
+    "scan_k": 1.0,
+    "scan_cone_deg": 60.0,
+    "steer_overhead_s": 1e-5,
+    "hpbw_az_deg": 3.0,
+    "hpbw_el_deg": 3.0,
+    "dwell_search_s": 0.01,
+    "dwell_track_s": 0.005,
+    "dwell_stt_s": 0.006,
+    "dwell_compensation": true,
+    "horizon_enabled": true,
+    "earth_radius_m": {
+      "$ref": "physics.json#/constants/earth_radius_m"
+    },
+    "earth_k": {
+      "$ref": "physics.json#/constants/earth_k"
+    },
+    "surface_alt_m": 0,
+    "min_range_m": 0,
+    "max_range_m": false,
+    "prf": [
+      {
+        "name": "HPRF",
+        "prf_hz": 200000.0,
+        "tau_s": 2e-6,
+        "notch_half_mps": 20.0,
+        "zero_notch_half_mps": 0.0
+      },
+      {
+        "name": "MPRF",
+        "prf_hz": 20000.0,
+        "tau_s": 5e-6,
+        "notch_half_mps": 25.0,
+        "zero_notch_half_mps": 0.0
+      },
+      {
+        "name": "LPRF",
+        "prf_hz": 2000.0,
+        "tau_s": 1e-6,
+        "notch_half_mps": 5.0,
+        "zero_notch_half_mps": 0.0
+      },
+      {
+        "name": "MPRF_ALT",
+        "prf_hz": 18000.0,
+        "tau_s": 5e-6,
+        "notch_half_mps": 25.0,
+        "zero_notch_half_mps": 0.0
+      },
+      {
+        "name": "HPRF_ALT",
+        "prf_hz": 164000.0,
+        "tau_s": 2e-6,
+        "notch_half_mps": 20.0,
+        "zero_notch_half_mps": 0.0
+      }
+    ]
+  },
+  "scheduler": {
+    "search": {
+      "az_span_deg": 30.0,
+      "az_step_deg": 3.0,
+      "el_bars_deg": [
+        -4.5,
+        -2.25,
+        0.0,
+        2.25,
+        4.5
+      ]
+    },
+    "revisit": {
+      "track_far_hz": 1.0,
+      "track_near_hz": 4.0,
+      "stt_hz": 6.0,
+      "near_range_m": 50000.0,
+      "near_prf_R_m": 8000.0
+    }
+  },
+  "prf_selection": {
+    "search": [
+      "MPRF",
+      "MPRF_ALT",
+      "HPRF",
+      "HPRF_ALT"
+    ],
+    "track_far": [
+      "MPRF",
+      "MPRF_ALT"
+    ],
+    "track_near": [
+      "HPRF",
+      "HPRF_ALT",
+      "MPRF",
+      "MPRF_ALT"
+    ],
+    "stt": [
+      "HPRF",
+      "HPRF_ALT"
+    ]
+  },
+  "tracker": {
+    "confirm_m": 2,
+    "confirm_window_s": 8.0,
+    "coast_s": 6.0,
+    "gate_base_m": 250.0,
+    "gate_vel_margin_mps": 150.0,
+    "gate_max_m": 2000.0,
+    "vel_floor_mps": 350.0,
+    "gate_accel_margin_mps": 300.0,
+    "vel_smooth": 0.5,
+    "vel_accel_max_mps2": 120.0,
+    "slow_mover_mps": 25.0
+  },
+  "legacy_key_names": [
+    "tick_s",
+    "notch_half_ms",
+    "zero_notch_half_ms",
+    "gate_vel_margin_ms",
+    "vel_floor_ms",
+    "gate_accel_margin_ms",
+    "slow_mover_ms",
+    "vel_accel_max_ms2",
+    "near_R_km",
+    "prf_indices",
+    "far_prf_indices",
+    "near_prf_indices",
+    "stt_prf_indices"
+  ],
+  "renames": {
+    "radar.lambda": "radar.lambda_m",
+    "radar.ptx_avg": "radar.ptx_avg_w",
+    "radar.prf[].prf": "radar.prf[].prf_hz",
+    "radar.prf[].notch_half_ms": "radar.prf[].notch_half_mps",
+    "radar.prf[].zero_notch_half_ms": "radar.prf[].zero_notch_half_mps",
+    "scheduler.tick_s": null,
+    "scheduler.search.prf_indices": "prf_selection.search (names)",
+    "scheduler.revisit.far_prf_indices": "prf_selection.track_far (names)",
+    "scheduler.revisit.near_prf_indices": "prf_selection.track_near (names)",
+    "scheduler.revisit.stt_prf_indices": "prf_selection.stt (names)",
+    "scheduler.revisit.near_R_km": "scheduler.revisit.near_range_m",
+    "tracker.gate_vel_margin_ms": "tracker.gate_vel_margin_mps",
+    "tracker.vel_floor_ms": "tracker.vel_floor_mps",
+    "tracker.gate_accel_margin_ms": "tracker.gate_accel_margin_mps",
+    "tracker.vel_accel_max_ms2": "tracker.vel_accel_max_mps2",
+    "tracker.slow_mover_ms": "tracker.slow_mover_mps"
+  },
+  "sources": {
+    "radar.lambda_m": {
+      "file": "spec/radar.json",
+      "line": 8,
+      "class": "assumption",
+      "note": "X 波段 10 GHz"
+    },
+    "radar.ptx_avg_w": {
+      "file": "spec/radar.json",
+      "line": 9,
+      "class": "assumption",
+      "note": "战斗机级 AESA 公开估计，取保守中值"
+    },
+    "radar.ptx_peak_w": {
+      "file": "spec/radar.json",
+      "line": 10,
+      "class": "assumption",
+      "note": "峰值功率上限；平均功率不超过峰值×占空比"
+    },
+    "radar.gain0_db": {
+      "file": "spec/radar.json",
+      "line": 11,
+      "class": "derived",
+      "note": "有效孔径约 0.33 m²，G=4πA/λ²"
+    },
+    "radar.nf_db": {
+      "file": "spec/radar.json",
+      "line": 12,
+      "class": "assumption",
+      "note": "典型噪声系数"
+    },
+    "radar.loss_db": {
+      "file": "spec/radar.json",
+      "line": 13,
+      "class": "assumption",
+      "note": "收发链路与处理总损耗"
+    },
+    "radar.pfa": {
+      "file": "spec/radar.json",
+      "line": 14,
+      "class": "setting",
+      "note": "常规虚警概率"
+    },
+    "radar.integration_efficiency": {
+      "file": "spec/radar.json",
+      "line": 15,
+      "class": "assumption",
+      "note": "理想全相参上界"
+    },
+    "radar.coherence_time_s": {
+      "file": "spec/radar.json",
+      "line": 16,
+      "class": "setting",
+      "note": "false = 不限定有效相参时间"
+    },
+    "radar.fluctuation_hold_s": {
+      "file": "spec/radar.json",
+      "line": 17,
+      "class": "assumption",
+      "note": "相邻 CPI 共享指数 RCS 功率因子；0 为独立驻留"
+    },
+    "radar.scan_k": {
+      "file": "spec/radar.json",
+      "line": 20,
+      "class": "setting",
+      "note": "G(θ)=G0·cos^k(θ)，k=1 孔径投影，工程 1~1.5"
+    },
+    "radar.scan_cone_deg": {
+      "file": "spec/radar.json",
+      "line": 21,
+      "class": "setting",
+      "note": "电扫锥（法线四周）"
+    },
+    "radar.steer_overhead_s": {
+      "file": "spec/radar.json",
+      "line": 22,
+      "class": "assumption",
+      "note": "移相器 µs 级波束指向开销"
+    },
+    "radar.hpbw_az_deg": {
+      "file": "spec/radar.json",
+      "line": 23,
+      "class": "derived",
+      "note": "0.886λ/D，D≈0.57 m"
+    },
+    "radar.hpbw_el_deg": {
+      "file": "spec/radar.json",
+      "line": 24,
+      "class": "derived",
+      "note": "同方位波束宽，圆形主瓣"
+    },
+    "radar.dwell_search_s": {
+      "file": "spec/radar.json",
+      "line": 27,
+      "class": "assumption",
+      "note": "HPRF 凝视搜索驻留典型值"
+    },
+    "radar.dwell_track_s": {
+      "file": "spec/radar.json",
+      "line": 28,
+      "class": "assumption",
+      "note": "航迹回访驻留"
+    },
+    "radar.dwell_stt_s": {
+      "file": "spec/radar.json",
+      "line": 29,
+      "class": "assumption",
+      "note": "STT 驻留"
+    },
+    "radar.dwell_compensation": {
+      "file": "spec/radar.json",
+      "line": 30,
+      "class": "derived",
+      "note": "Td(θ) ∝ cos^(-2k)(θ)"
+    },
+    "radar.horizon_enabled": {
+      "file": "spec/radar.json",
+      "line": 31,
+      "class": "setting",
+      "note": "有效地球球面视距；地形另由真值适配器提供"
+    },
+    "radar.earth_radius_m": {
+      "file": "spec/physics.json",
+      "line": 1,
+      "class": "public_constant",
+      "note": "引用 spec/physics.json#/constants/earth_radius_m"
+    },
+    "radar.earth_k": {
+      "file": "spec/physics.json",
+      "line": 1,
+      "class": "assumption",
+      "note": "引用 spec/physics.json#/constants/earth_k"
+    },
+    "radar.surface_alt_m": {
+      "file": "spec/radar.json",
+      "line": 34,
+      "class": "setting",
+      "note": "球面基准海拔，不是地形高度"
+    },
+    "radar.min_range_m": {
+      "file": "spec/radar.json",
+      "line": 35,
+      "class": "setting",
+      "note": "额外处理下限；波形最小距离仍单独判断"
+    },
+    "radar.max_range_m": {
+      "file": "spec/radar.json",
+      "line": 36,
+      "class": "setting",
+      "note": "false = 不裁剪有效探测距离"
+    },
+    "radar.prf": {
+      "file": "spec/radar.json",
+      "line": 39,
+      "class": "assumption",
+      "note": "五个 PRF 档；每档 tau/notch 见行 40-44"
+    },
+    "radar.prf[].notch_half_mps": {
+      "file": "spec/radar.json",
+      "line": 40,
+      "class": "setting",
+      "note": "单位 m/s；Gate 2 由毫秒后缀改名"
+    },
+    "radar.prf[].zero_notch_half_mps": {
+      "file": "src/core/detection.lua",
+      "line": 42,
+      "class": "code_default",
+      "note": "physics 读取可选的零多普勒凹口，缺省 0；config.lua 未配置"
+    },
+    "scheduler.search.az_span_deg": {
+      "file": "spec/radar.json",
+      "line": 52,
+      "class": "setting",
+      "note": "搜索方位 ±30°"
+    },
+    "scheduler.search.az_step_deg": {
+      "file": "spec/radar.json",
+      "line": 53,
+      "class": "derived",
+      "note": "步进等于波束宽"
+    },
+    "scheduler.search.el_bars_deg": {
+      "file": "spec/radar.json",
+      "line": 57,
+      "class": "derived",
+      "note": "覆盖包线 -6°..+6°；间距 2.25° < hpbw_el_deg=3°"
+    },
+    "scheduler.revisit.track_far_hz": {
+      "file": "spec/radar.json",
+      "line": 61,
+      "class": "setting",
+      "note": "RRM 文献经验区间"
+    },
+    "scheduler.revisit.track_near_hz": {
+      "file": "spec/radar.json",
+      "line": 62,
+      "class": "setting",
+      "note": "近距跟踪回访率"
+    },
+    "scheduler.revisit.stt_hz": {
+      "file": "spec/radar.json",
+      "line": 63,
+      "class": "setting",
+      "note": "STT 回访率"
+    },
+    "scheduler.revisit.near_range_m": {
+      "file": "spec/radar.json",
+      "line": 64,
+      "class": "setting",
+      "note": "原为 km，按约定换算为 m"
+    },
+    "scheduler.revisit.near_prf_R_m": {
+      "file": "spec/radar.json",
+      "line": 65,
+      "class": "setting",
+      "note": "近/远距 PRF 分界距离"
+    },
+    "prf_selection": {
+      "file": "spec/radar.json",
+      "line": 58,
+      "class": "setting",
+      "note": "由原下标数组按下标映射为名字：search {2,4,1,5}、track_far {2,4}、track_near {1,5,2,4}、stt {1,5}"
+    },
+    "tracker.confirm_m": {
+      "file": "spec/radar.json",
+      "line": 73,
+      "class": "setting",
+      "note": "M/N 起始；2/3 等价时间窗简化"
+    },
+    "tracker.confirm_window_s": {
+      "file": "spec/radar.json",
+      "line": 74,
+      "class": "setting",
+      "note": "M/N 确认时间窗"
+    },
+    "tracker.coast_s": {
+      "file": "spec/radar.json",
+      "line": 75,
+      "class": "setting",
+      "note": "漏检保持时长"
+    },
+    "tracker.gate_base_m": {
+      "file": "spec/radar.json",
+      "line": 79,
+      "class": "setting",
+      "note": "自适应关联门基础值"
+    },
+    "tracker.gate_vel_margin_mps": {
+      "file": "spec/radar.json",
+      "line": 80,
+      "class": "setting",
+      "note": "速度估计误差裕度，单位 m/s"
+    },
+    "tracker.gate_max_m": {
+      "file": "spec/radar.json",
+      "line": 81,
+      "class": "setting",
+      "note": "关联门上限"
+    },
+    "tracker.vel_floor_mps": {
+      "file": "spec/radar.json",
+      "line": 82,
+      "class": "setting",
+      "note": "速度未知期的合理性下限，单位 m/s"
+    },
+    "tracker.gate_accel_margin_mps": {
+      "file": "spec/radar.json",
+      "line": 83,
+      "class": "setting",
+      "note": "关联隐含速度容差，单位 m/s"
+    },
+    "tracker.vel_smooth": {
+      "file": "spec/radar.json",
+      "line": 85,
+      "class": "setting",
+      "note": "速率平滑系数"
+    },
+    "tracker.vel_accel_max_mps2": {
+      "file": "spec/radar.json",
+      "line": 86,
+      "class": "setting",
+      "note": "单次回访速度变化上限，单位 m/s²"
+    },
+    "tracker.slow_mover_mps": {
+      "file": "spec/radar.json",
+      "line": 89,
+      "class": "setting",
+      "note": "慢速动目标抑制阈值，单位 m/s；低于该速度不确认"
+    }
+  },
+  "known_conflicts": [
+    {
+      "id": "zero_notch_not_configured",
+      "topic": "zero_notch_half_ms 在原核心 physics.lua 中可选、原 config.lua 未配置（现为 core/detection.lua + 生成配置）",
+      "evidence": [
+        "src/core/detection.lua:42-43 treats pe.zero_notch_half_mps <= 0 as disabled",
+        "Gate 2 前旧核心配置（文件已删除）没有 zero_notch_half_ms；现 spec/radar.json 显式写出 zero_notch_half_mps=0.0"
+      ],
+      "resolution": "spec 显式写出 zero_notch_half_mps=0.0，来源标为 code_default；不是新增行为"
+    },
+    {
+      "id": "gate_accel_margin_unit",
+      "topic": "gate_accel_margin_ms 名称写 ms，实际单位是 m/s（现已改名 gate_accel_margin_mps）",
+      "evidence": [
+        "Gate 2 前旧配置 gate_accel_margin_ms = 300.0（文件已删除）",
+        "docs/conventions.md 曾漏列 gate_accel_margin_ms；现配置键为 tracker.gate_accel_margin_mps"
+      ],
+      "resolution": "spec 改为 gate_accel_margin_mps；数值不变"
+    }
+  ]
+}

@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>AESA LIVE</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #07090c; color: #9fb8c4;
+    font: 13px/1.45 "Consolas", "Cascadia Mono", monospace;
+    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  }
+  header {
+    display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center;
+    padding: 6px 12px; background: #0c1117; border-bottom: 1px solid #1a2530;
+    white-space: nowrap;
+  }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+         background: #3a4a56; margin-right: 5px; vertical-align: -1px; }
+  .dot.on { background: #35e06a; box-shadow: 0 0 6px #35e06a; }
+  .dot.rep { background: #f5a623; box-shadow: 0 0 6px #f5a623; }
+  b { color: #d7ecf5; font-weight: 600; }
+  .dim { color: #5b7280; }
+  main { flex: 1; display: flex; min-height: 0; padding: 8px 12px; gap: 8px; }
+  #wrap { position: relative; flex: 1; min-width: 0; }
+  canvas { display: block; height: 100%; }
+  #scope { width: 100%; }
+  #elstrip { width: 56px; flex: none; }
+  #stale {
+    position: absolute; inset: 0; display: none; place-items: center;
+    background: rgba(5, 8, 11, .55); color: #e8b13c; font-size: 20px;
+    letter-spacing: .3em; pointer-events: none;
+  }
+  footer {
+    display: flex; gap: 18px; align-items: center;
+    padding: 5px 12px; background: #0c1117; border-top: 1px solid #1a2530;
+  }
+  label { cursor: pointer; user-select: none; }
+  a { color: #4aa3c7; text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+  <span><span class="dot" id="link-dot"></span><span id="st-link">LINK —</span></span>
+  <span>t <b id="st-t">—</b></span>
+  <span id="st-own" class="dim">—</span>
+  <span>波束 <b id="st-beam">—</b></span>
+  <span>光栅 <b id="st-raster">—</b></span>
+  <span>预算 <b id="st-duty">—</b></span>
+  <span>航迹 <b id="st-tracks">—</b></span>
+  <span>引擎接触 <b id="st-eng">0</b></span>
+</header>
+<main>
+  <div id="wrap">
+    <canvas id="scope"></canvas>
+    <div id="stale">等待数据</div>
+  </div>
+  <canvas id="elstrip" title="俯仰条"></canvas>
+</main>
+<footer>
+  <label><input type="checkbox" id="truth"> 真值叠加（调试）</label>
+  <button id="mode" style="background:#16222c;color:#9fd6e8;border:1px solid #2a4351;
+    border-radius:3px;padding:2px 10px;font:inherit;cursor:pointer">显示：B-scope</button>
+  <button id="orient" style="background:#16222c;color:#9fd6e8;border:1px solid #2a4351;
+    border-radius:3px;padding:2px 10px;font:inherit;cursor:pointer">俯视：N↑</button>
+  <span class="dim">量程 <b id="st-scale">auto</b></span>
+  <span class="dim" id="st-note"></span>
+  <span class="dim" title="实线最多15秒，虚线延伸至最多60秒；按量程及屏幕长度缩短，长度不直接表示速度">实线：速度方向 · 虚线：预测（限长）</span>
+  <span style="flex:1"></span>
+  <span class="dim" style="color:#4db8ff">■友</span>
+  <span class="dim" style="color:#ff5252">■敌</span>
+  <span class="dim" style="color:#ffd24a">■未知</span>
+  <span class="dim">aesa phase-3a viewer</span>
+</footer>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const scope = $("scope"), sctx = scope.getContext("2d");
+const els = $("elstrip"), ectx = els.getContext("2d");
+
+let snap = null, shownScale = 0, msgN = 0;
+let mode = localStorage.getItem("aesa-mode") || "bscope";   // bscope | plan
+let planUp = localStorage.getItem("aesa-plan-up") || "north"; // north | heading（俯视图朝向）
+const hist = {};   // trackId -> {pts:[{east_m,north_m}], seen}（ENU 世界坐标跟踪档案）
+
+/* ---------------- SSE ---------------- */
+let es = null;
+function connect() {
+  es = new EventSource("/stream");
+  es.onmessage = ev => {
+    const s = JSON.parse(ev.data);
+    snap = s;
+    msgN++;
+    /* 尾迹存世界坐标：本机转向时历史随目标刚体转动（真实 track file 行为）。
+       按位移量采样（400m 一点）而非每帧：近径向目标 2 秒内真实位移极小，
+       每帧采样只会得到符号脚下一小撮被挡住的点 */
+    for (const t of s.tracks || []) {
+      if (t.east_m == null || t.north_m == null) continue;
+      const h = hist[t.id] || (hist[t.id] = { pts: [], seen: 0 });
+      h.seen = 0;
+      const last = h.pts[h.pts.length - 1];
+      if (!last || Math.hypot(t.east_m - last.east_m, t.north_m - last.north_m) > 400) {
+        h.pts.push({ east_m: t.east_m, north_m: t.north_m });
+        if (h.pts.length > 40) h.pts.shift();
+      }
+    }
+    for (const k in hist) hist[k].seen++;
+    if (msgN % 600 === 0)                       // ~1 分钟未更新即清档
+      for (const k in hist) if (hist[k].seen > 600) delete hist[k];
+    requestAnimationFrame(draw);
+  };
+  es.onerror = () => { $("st-link").textContent = "重连中…"; };
+}
+connect();
+
+/* ---------------- 布局 ---------------- */
+function fit() {
+  for (const c of [scope, els]) {
+    const r = c.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+    c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
+    c.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  if (snap) draw();
+}
+addEventListener("resize", fit);
+
+const M = { l: 58, r: 14, t: 24, b: 40 };
+const KT = 1.94384, KNM = 0.539957, M2NM = 1 / 1852;  // m/s→kt, km→NM, m→NM
+
+/* ISA 标准大气（显示层近似）：真空速→IAS 与马赫。世界速度视作真空速（无风假设）。 */
+function isa(h) {
+  h = Math.max(0, h);
+  const T = h < 11000 ? 288.15 - 0.0065 * h : 216.65;
+  const p = h < 11000
+      ? 101325 * Math.pow(T / 288.15, 5.2559)
+      : 22632 * Math.exp(-9.80665 * (h - 11000) / (287.05 * 216.65));
+  return { sr: Math.sqrt(p / (287.05 * T) / 1.225), a: Math.sqrt(1.4 * 287.05 * T) };
+}
+const iasKt = (ms, h) => Math.round(ms * isa(h).sr * KT);
+const mach = (ms, h) => ms / isa(h).a;
+
+function azMax() { return snap && snap.cfg ? snap.cfg.scan_cone_deg : 60; }
+function searchSpan() { return snap && snap.cfg ? snap.cfg.az_span_deg : 30; }
+
+function xOf(az) {
+  const w = scope.getBoundingClientRect().width;
+  return M.l + (az + azMax()) / (2 * azMax()) * (w - M.l - M.r);
+}
+function yOf(rnm, scale, h) { return h - M.b - (rnm / scale) * (h - M.t - M.b); }
+
+/* ---------------- 绘制 ---------------- */
+const IFF_COL = { friend: "#4db8ff", hostile: "#ff5252", unknown: "#ffd24a" };
+const iffCol = t => IFF_COL[t.iff] || (t.confirmed ? COL.conf : COL.tent);
+const COL = {
+  grid: "#18242e", gridTxt: "#54707e", band: "#0d151c",
+  search: "#2ec8e0", track: "#ff9a3c", stt: "#ff5252",
+  conf: "#39d6ff", tent: "#ffd24a", truth: "#8a97a0",
+};
+
+function niceStep(scale) {
+  const c = [2, 5, 10, 20, 50];
+  for (const s of c) if (scale / s <= 6) return s;
+  return 50;
+}
+
+/* 显示设定：世界距离上限不能限制 B-scope 的角度放大。
+   沿实际世界运动缩短预测时间，限制投影路径总长（CSS px），而非拉伸/截断屏幕箭头。
+   本机位置/朝向保持当前值；这些线是目标世界速度的显示提示。 */
+function vectorPath(tr, proj, rangeM, plotSize) {
+  if (![tr.east_m, tr.north_m, tr.ve_mps, tr.vn_mps].every(Number.isFinite)) return null;
+  const speed = Math.max(tr.speed_ms || 0, Math.hypot(tr.ve_mps, tr.vn_mps));
+  if (!Number.isFinite(speed) || speed > 400 || speed < 1e-6) return null;
+  const end = Math.min(60, 0.30 * rangeM / speed);
+  const solidEnd = Math.min(15, end / 2);
+  const maxTotal = Math.min(96, 0.20 * plotSize), maxSolid = maxTotal / 2;
+  if (end <= 0 || maxTotal <= 0) return null;
+  const at = t => proj({east_m: tr.east_m + tr.ve_mps * t, north_m: tr.north_m + tr.vn_mps * t});
+  const valid = p => p && p.every(Number.isFinite);
+  let point = at(0), t = 0, total = 0, solidLength = 0, isSolid = true;
+  if (!valid(point)) return null;
+  const result = {solid: [point], future: [], solid_s: 0, end_s: 0};
+  // ≤1秒采样，也避免跨过本机附近时把非线性投影直接连成长弦。
+  while (t < end - 1e-8) {
+    let nextT = Math.min(t + 1, end, isSolid ? solidEnd : end);
+    let next = at(nextT);
+    if (!valid(next)) return null;
+    const distance = p => Math.hypot(p[0] - point[0], p[1] - point[1]);
+    const budget = Math.min(maxTotal - total, isSolid ? maxSolid - solidLength : Infinity);
+    const limited = distance(next) > budget;
+    if (limited) {
+      // 在世界运动的时间轴上找端点；继续保持真实投影方向与曲率。
+      let lo = t, hi = nextT;
+      for (let i = 0; i < 24; i++) {
+        const mid = (lo + hi) / 2;
+        if (distance(at(mid)) <= budget) lo = mid; else hi = mid;
+      }
+      nextT = lo;
+      next = at(nextT);
+    }
+    const stepLength = distance(next);
+    total += stepLength;
+    if (isSolid) solidLength += stepLength;
+    (isSolid ? result.solid : result.future).push(next);
+    t = nextT; point = next;
+    if (isSolid && (limited || t >= solidEnd - 1e-8)) {
+      isSolid = false;
+      result.solid_s = t;
+      result.future.push(point);
+    } else if (limited) break;
+  }
+  result.end_s = t;
+  return result;
+}
+
+function drawVector(tr, proj, rangeM, plotSize) {
+  const path = vectorPath(tr, proj, rangeM, plotSize);
+  if (!path) return;
+  const stroke = points => {
+    sctx.beginPath(); sctx.moveTo(...points[0]);
+    for (const point of points.slice(1)) sctx.lineTo(...point);
+    sctx.stroke();
+  };
+  sctx.strokeStyle = iffCol(tr); sctx.lineWidth = 1.6;
+  stroke(path.solid);
+  sctx.lineWidth = 1; sctx.setLineDash([5, 4]); sctx.globalAlpha = 0.5;
+  stroke(path.future);
+  sctx.setLineDash([]); sctx.globalAlpha = 1;
+}
+
+function draw() {
+  if (!snap) return;
+  const rect = scope.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  if (W < 50 || H < 50) return;
+  const hrect = els.getBoundingClientRect();
+
+  sctx.clearRect(0, 0, W, H);
+  if (mode === "plan") {
+    drawPlan(W, H);
+  } else {
+    /* 量程（NM）：航迹/真值最大距离 ×1.3，取雷达常用整档 */
+    let far = 0;
+    for (const t of snap.tracks || []) if (t.R_km != null) far = Math.max(far, t.R_km);
+    if ($("truth").checked) for (const t of snap.truth || []) far = Math.max(far, t.R_km);
+    const scale = [10, 20, 40, 60, 80, 120, 160, 200].find(s => far * KNM * 1.3 <= s) || 200;
+    shownScale = scale;
+    $("st-scale").textContent = "auto " + scale + "nm";
+    drawScope(W, H, scale);
+  }
+  drawStrip(hrect.height);
+
+  /* 状态栏 */
+  const L = snap.link || {};
+  const live = L.source !== "replay";
+  $("link-dot").className = "dot " + (L.connected ? (live ? "on" : "rep") : "");
+  $("st-link").textContent = (L.source === "replay" ? "回放" : "LIVE")
+      + (L.connected ? (L.eof ? "·结束" : "·" + (L.hz || 0) + "Hz") : "·离线")
+      + " 帧" + (L.frames || 0);
+  $("st-t").textContent = (snap.t != null ? snap.t.toFixed(1) : "—") + "s";
+  const o = snap.own || {};
+  $("st-own").textContent = [o.type,
+      o.alt_m != null ? Math.round(o.alt_m * 3.28084) + "ft" : null,
+      o.speed_ms != null
+          ? iasKt(o.speed_ms, o.alt_m || 0) + "kt M" + mach(o.speed_ms, o.alt_m || 0).toFixed(2)
+          : null,
+      o.heading_deg != null ? o.heading_deg.toFixed(0).padStart(3, "0") + "°" : null]
+      .filter(Boolean).join("  ");
+  const b = snap.beam;
+  $("st-beam").textContent = b ? (b.az_deg != null ? b.az_deg.toFixed(1) + "°" : "—")
+      + " / " + (b.el_deg != null ? b.el_deg.toFixed(1) + "°" : "—")
+      + "  " + b.purpose + " " + b.prf + " " + b.td_ms.toFixed(1) + "ms"
+      + (b.detections ? " ✦" + b.detections : "") : "—";
+  const rs = snap.raster || {}, sc = snap.sched || {};
+  $("st-raster").textContent = rs.idx + "/" + rs.count
+      + (rs.frame_time_s != null ? " 帧" + rs.frame_time_s.toFixed(2) + "s" : "");
+  $("st-duty").textContent = sc.search_pct != null
+      ? "搜" + sc.search_pct + "% 跟" + sc.track_pct + "% STT" + sc.stt_pct + "%"
+      : "—";
+  const nC = (snap.tracks || []).filter(t => t.confirmed).length;
+  $("st-tracks").textContent = nC + "确认/" + ((snap.tracks || []).length - nC) + "暂定";
+  $("st-eng").textContent = L.engine || 0;
+  $("st-note").textContent = sc.dwells ? sc.dwells + " 驻留 · 迟滞 STT "
+      + sc.stt_late_max_ms + "ms / 航迹 " + sc.track_late_max_ms + "ms" : "";
+
+  const age = Date.now() / 1000 - snap.wall;
+  $("stale").style.display = age > 2.5 ? "grid" : "none";
+}
+
+function drawScope(W, H, scale) {
+  /* 搜索覆盖带（方位向） */
+  const span = searchSpan();
+  sctx.fillStyle = COL.band;
+  sctx.fillRect(xOf(-span), M.t, xOf(span) - xOf(-span), H - M.t - M.b);
+
+  /* 网格 */
+  sctx.font = "11px Consolas, monospace";
+  sctx.textAlign = "center";
+  const azStep = azMax() >= 45 ? 15 : 10;
+  for (let a = -Math.floor(azMax() / azStep) * azStep; a <= azMax(); a += azStep) {
+    const x = xOf(a);
+    sctx.strokeStyle = a === 0 ? "#24343f" : COL.grid;
+    sctx.beginPath(); sctx.moveTo(x, M.t); sctx.lineTo(x, H - M.b); sctx.stroke();
+    sctx.fillStyle = COL.gridTxt;
+    sctx.fillText((a > 0 ? "+" : "") + a + "°", x, H - M.b + 16);
+  }
+  sctx.textAlign = "right";
+  const rs = niceStep(scale);
+  for (let r = 0; r <= scale; r += rs) {
+    const y = yOf(r, scale, H);
+    sctx.strokeStyle = r === 0 ? "#24343f" : COL.grid;
+    sctx.beginPath(); sctx.moveTo(M.l, y); sctx.lineTo(W - M.r, y); sctx.stroke();
+    sctx.fillStyle = COL.gridTxt;
+    sctx.fillText(r + "", M.l - 8, y + 4);
+  }
+  sctx.save();
+  sctx.translate(14, (M.t + H - M.b) / 2); sctx.rotate(-Math.PI / 2);
+  sctx.textAlign = "center"; sctx.fillStyle = COL.gridTxt;
+  sctx.fillText("距离 nm", 0, 0);
+  sctx.restore();
+
+  const t = snap.t || 0;
+  const beamCol = p => p === "stt" ? COL.stt : (p === "track" ? COL.track : COL.search);
+
+  /* 波束轨迹（2.5s 内按新→旧渐隐；全高度竖线） */
+  for (const e of snap.beam_trail || []) {
+    if (e.az_deg == null) continue;
+    const age = t - (e.t || 0);
+    if (age < 0 || age > 2.5) continue;
+    const a = 0.38 * (1 - age / 2.5);
+    sctx.strokeStyle = beamCol(e.purpose);
+    sctx.globalAlpha = a;
+    sctx.beginPath(); sctx.moveTo(xOf(e.az_deg), M.t); sctx.lineTo(xOf(e.az_deg), H - M.b); sctx.stroke();
+  }
+  sctx.globalAlpha = 1;
+
+  /* 当前波束 + 检测闪光 */
+  const b = snap.beam;
+  if (b && b.az_deg != null) {
+    const x = xOf(b.az_deg);
+    sctx.strokeStyle = beamCol(b.purpose);
+    sctx.lineWidth = 1.6;
+    sctx.beginPath(); sctx.moveTo(x, M.t); sctx.lineTo(x, H - M.b); sctx.stroke();
+    sctx.lineWidth = 1;
+    sctx.beginPath();
+    sctx.moveTo(x - 6, M.t - 9); sctx.lineTo(x, M.t - 1); sctx.lineTo(x + 6, M.t - 9);
+    sctx.stroke();
+    if (b.detections > 0) {
+      sctx.fillStyle = COL.search;
+      sctx.globalAlpha = 0.85;
+      sctx.beginPath(); sctx.arc(x, M.t + 10, 4 + Math.min(b.detections, 3) * 2, 0, 7); sctx.fill();
+      sctx.globalAlpha = 1;
+    }
+  }
+
+  /* 真值叠加（调试层，默认关） */
+  if ($("truth").checked) {
+    for (const g of snap.truth || []) {
+      if (g.az_deg == null || g.R_km == null) continue;
+      const x = xOf(g.az_deg), y = yOf(g.R_km * KNM, scale, H);
+      sctx.strokeStyle = COL.truth; sctx.globalAlpha = 0.8;
+      sctx.beginPath();
+      sctx.moveTo(x - 4, y); sctx.lineTo(x + 4, y);
+      sctx.moveTo(x, y - 4); sctx.lineTo(x, y + 4);
+      sctx.stroke();
+      sctx.fillStyle = COL.truth; sctx.font = "10px Consolas, monospace";
+      sctx.textAlign = "left";
+      sctx.fillText(g.label || g.id, x + 7, y + 3);
+      sctx.globalAlpha = 1;
+    }
+  }
+
+  /* 世界坐标 → 机体坐标（fb/rb 分解同 physics.geometry §0）*/
+  const op = snap.own && snap.own.pos ? snap.own.pos : null;
+  if (op) {
+    const hr = ((snap.own.heading_deg || 0) * Math.PI) / 180;
+    const sh = Math.sin(hr), ch = Math.cos(hr);
+    const proj = p => {
+      const de = p.east_m - op[0], dn = p.north_m - op[1];
+      const fb = de * sh + dn * ch, rb = de * ch - dn * sh;
+      const az = Math.atan2(rb, fb) * 180 / Math.PI;
+      return [xOf(az), yOf(Math.hypot(de, dn) * M2NM, scale, H)];
+    };
+    sctx.save();
+    sctx.beginPath(); sctx.rect(M.l, M.t, W - M.l - M.r, H - M.t - M.b); sctx.clip();
+    /* 尾迹（连续线段 + 新旧渐隐），并从尾迹末端补一段连到当前符号位置（视觉连续） */
+    for (const id in hist) {
+      const pts = hist[id].pts;
+      for (let i = 1; i < pts.length; i++) {
+        const a = proj(pts[i - 1]), b = proj(pts[i]);
+        sctx.strokeStyle = COL.conf;
+        sctx.globalAlpha = 0.10 + 0.45 * (i / pts.length);
+        sctx.beginPath(); sctx.moveTo(a[0], a[1]); sctx.lineTo(b[0], b[1]); sctx.stroke();
+      }
+      const trk = (snap.tracks || []).find(t => t.id == id && t.east_m != null);
+      if (trk && pts.length) {
+        const b = proj(pts[pts.length - 1]), c = proj({ east_m: trk.east_m, north_m: trk.north_m });
+        sctx.strokeStyle = COL.conf; sctx.globalAlpha = 0.55;
+        sctx.beginPath(); sctx.moveTo(b[0], b[1]); sctx.lineTo(c[0], c[1]); sctx.stroke();
+      }
+    }
+    sctx.globalAlpha = 1;
+    /* 速度方向 + 预测：世界距离与投影屏幕长度共同限幅。 */
+    for (const tr of snap.tracks || []) {
+      drawVector(tr, proj, scale * 1852, Math.min(W - M.l - M.r, H - M.t - M.b));
+    }
+    sctx.restore();
+  }
+  sctx.globalAlpha = 1;
+
+  /* 航迹符号 + 单标签（编号 / 距离+闭合速度），四向避让，全占则引出线扇出 */
+  sctx.font = "11px Consolas, monospace";
+  const placed = [];
+  const overlaps = (x, y, w, h) => placed.some(p =>
+      Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < (p.h + h) / 2);
+  const put = (ax, ay, cx, cy, w, h, lines, color) => {
+    placed.push({ x: cx, y: cy, w, h });
+    sctx.fillStyle = color;
+    sctx.fillText(lines[0], ax, ay - 2);
+    if (lines[1]) { sctx.fillStyle = "#8fb2c2"; sctx.fillText(lines[1], ax, ay + 10); }
+  };
+  for (const tr of snap.tracks || []) {
+    if (tr.az_deg == null || tr.R_km == null) continue;
+    const x = xOf(tr.az_deg), y = yOf(tr.R_km * KNM, scale, H);
+    const col = iffCol(tr);
+    if (tr.confirmed) {
+      sctx.strokeStyle = col;
+      sctx.beginPath(); sctx.arc(x, y, 7, 0, 7); sctx.stroke();
+      sctx.fillStyle = col;
+      sctx.beginPath(); sctx.arc(x, y, 1.8, 0, 7); sctx.fill();
+    } else {
+      sctx.strokeStyle = col;
+      sctx.beginPath();
+      sctx.moveTo(x, y - 7); sctx.lineTo(x + 7, y); sctx.lineTo(x, y + 7); sctx.lineTo(x - 7, y);
+      sctx.closePath(); sctx.stroke();
+    }
+    const l1 = String(tr.id);
+    const l2 = (tr.R_km * KNM).toFixed(0) + "nm"
+        + (tr.vr_mps != null ? " c" + Math.round(Math.abs(tr.vr_mps) * KT)
+           + (tr.vr_mps > 0 ? "▲" : "▼") : "");   // c=接近率(kt)，▲接近/▼远离，≠目标速度
+    const w = Math.max(sctx.measureText(l1).width, sctx.measureText(l2).width) + 8;
+    const h = 24;
+    /* 候选：右(左对齐) → 左(右对齐) → 上(居中) → 下(居中) */
+    const cands = [
+      { x: x + 12, y: y - 4, align: "left",   lead: [x + 8, y, x + 11, y] },
+      { x: x - 12, y: y - 4, align: "right",  lead: [x - 8, y, x - 11, y] },
+      { x,        y: y - 18, align: "center", lead: [x, y - 8, x, y - 14] },
+      { x,        y: y + 14, align: "center", lead: [x, y + 8, x, y + 12] },
+    ];
+    let done = false;
+    for (const c of cands) {
+      sctx.textAlign = c.align;
+      const cx = c.align === "left" ? c.x + w / 2
+               : c.align === "right" ? c.x - w / 2 : c.x;
+      const cy = c.y + 3;
+      if (!overlaps(cx, cy, w, h)) {
+        put(c.x, c.y, cx, cy, w, h, [l1, l2], col);
+        done = true;
+        break;
+      }
+    }
+    if (!done) {
+      /* 兜底：引出线拉到同侧横向扇出位 */
+      const dir = x < xOf(0) ? -1 : 1;           // 靠左的往左扇，靠右的往右扇
+      let lx = x;
+      do { lx += dir * 26; } while (overlaps(lx, y + 3, w, h) && Math.abs(lx - x) < 160);
+      sctx.textAlign = dir > 0 ? "left" : "right";
+      sctx.strokeStyle = "#33505f";
+      sctx.beginPath();
+      sctx.moveTo(x + dir * 8, y); sctx.lineTo(lx - dir * 3, y);
+      sctx.stroke();
+      const cx = dir > 0 ? lx + w / 2 : lx - w / 2;
+      put(lx, y, cx, y + 3, w, h, [l1, l2], col);
+    }
+  }
+}
+
+/* ---------------- 俯视图：世界画布，本机在其中机动；朝向可切 N↑ / 航向↑ ----------------
+   航迹 = 目标真实世界路径（直线即直线飞）。N↑：画布固定正北朝上，转向只转本机符号；
+   航向↑：整个世界随机头旋转、本机符号恒朝上（真实战机 SA/HSI 页面的两种常规朝向） */
+function drawPlan(W, H) {
+  const op = snap.own && snap.own.pos ? snap.own.pos : null;
+  if (!op) return;
+  const h = ((snap.own.heading_deg || 0) * Math.PI) / 180;
+  const up = planUp === "heading";
+  const sh = Math.sin(h), ch = Math.cos(h);
+  let far = 0;
+  const ext = p => Math.hypot(p.east_m - op[0], p.north_m - op[1]);
+  for (const t of snap.tracks || []) if (t.east_m != null) far = Math.max(far, ext(t));
+  if ($("truth").checked) for (const t of snap.truth || []) if (t.east_m != null) far = Math.max(far, ext(t));
+  for (const id in hist) for (const p of hist[id].pts) far = Math.max(far, ext(p));
+  const half = [5, 10, 20, 40, 80, 120, 160, 200].find(s => far * M2NM * 1.25 <= s) || 200;
+  const pxm = ((Math.min(W - M.l - M.r, H - M.t - M.b) / 2) - 12) / (half * 1852);
+  const cx = M.l + (W - M.l - M.r) / 2, cy = M.t + (H - M.t - M.b) / 2;
+  /* 世界 → 屏幕（ENU：east/north）。N↑：北朝上；航向↑：把机头方向旋到正上 */
+  const proj = up
+      ? (e, n) => {
+          const de = e - op[0], dn = n - op[1];
+          return [cx + (de * ch - dn * sh) * pxm, cy - (de * sh + dn * ch) * pxm];
+        }
+      : (e, n) => [cx + (e - op[0]) * pxm, cy - (n - op[1]) * pxm];
+  const rad = half * 1852 * pxm;
+
+  /* 距离环 */
+  sctx.font = "11px Consolas, monospace";
+  const rstep = [1, 2, 5, 10, 20].find(s => half / s <= 4) || 20;
+  for (let r = rstep; r <= half; r += rstep) {
+    sctx.strokeStyle = COL.grid;
+    sctx.beginPath(); sctx.arc(cx, cy, r * 1852 * pxm, 0, 7); sctx.stroke();
+    sctx.fillStyle = COL.gridTxt; sctx.textAlign = "left";
+    sctx.fillText(r + "", cx + 5, cy - r * 1852 * pxm + 13);
+  }
+
+  /* 搜索扇区（±az_span，随机头）+ 当前波束：航向↑ 时机头恒朝上（基角 -90°） */
+  const span = searchSpan() * Math.PI / 180;
+  const base = (up ? 0 : h) - Math.PI / 2;
+  sctx.fillStyle = "rgba(46,200,224,0.05)";
+  sctx.beginPath(); sctx.moveTo(cx, cy);
+  sctx.arc(cx, cy, rad, base - span, base + span);
+  sctx.closePath(); sctx.fill();
+  const b = snap.beam;
+  if (b && b.az_deg != null) {
+    const ba = (up ? 0 : h) + b.az_deg * Math.PI / 180 - Math.PI / 2;
+    sctx.strokeStyle = b.purpose === "stt" ? COL.stt
+        : (b.purpose === "track" ? COL.track : COL.search);
+    sctx.lineWidth = 1.5;
+    sctx.beginPath(); sctx.moveTo(cx, cy);
+    sctx.lineTo(cx + Math.cos(ba) * rad, cy + Math.sin(ba) * rad); sctx.stroke();
+    sctx.lineWidth = 1;
+  }
+
+  /* 尾迹：世界路径原样绘制（本文件最诚实的呈现层），末端连到当前符号 */
+  for (const id in hist) {
+    const pts = hist[id].pts;
+    for (let i = 1; i < pts.length; i++) {
+      if (ext(pts[i]) > half * 1852) continue;
+      const a = proj(pts[i - 1]), c = proj(pts[i]);
+      sctx.strokeStyle = COL.conf;
+      sctx.globalAlpha = 0.12 + 0.5 * (i / pts.length);
+      sctx.beginPath(); sctx.moveTo(a[0], a[1]); sctx.lineTo(c[0], c[1]); sctx.stroke();
+    }
+    const trk = (snap.tracks || []).find(t => t.id == id && t.east_m != null);
+    if (trk && pts.length && ext(trk) <= half * 1852) {
+      const a = proj(pts[pts.length - 1]);
+      const c = proj({ east_m: trk.east_m, north_m: trk.north_m });
+      sctx.strokeStyle = COL.conf; sctx.globalAlpha = 0.6;
+      sctx.beginPath(); sctx.moveTo(a[0], a[1]); sctx.lineTo(c[0], c[1]); sctx.stroke();
+    }
+  }
+  sctx.globalAlpha = 1;
+
+  /* 与 B-scope 共用速度方向/预测限长规则。 */
+  for (const tr of snap.tracks || []) {
+    drawVector(tr, p => proj(p.east_m, p.north_m), half * 1852,
+        Math.min(W - M.l - M.r, H - M.t - M.b));
+  }
+
+  /* 真值叠加（世界位置原样） */
+  if ($("truth").checked) for (const g of snap.truth || []) {
+    if (g.east_m == null) continue;
+    const [x, y] = proj(g.east_m, g.north_m);
+    sctx.strokeStyle = COL.truth;
+    sctx.beginPath();
+    sctx.moveTo(x - 4, y); sctx.lineTo(x + 4, y);
+    sctx.moveTo(x, y - 4); sctx.lineTo(x, y + 4);
+    sctx.stroke();
+  }
+
+  /* 航迹符号 + 单行标签（编号 距离nm） */
+  const placed = [];
+  const overlaps = (x, y, w) => placed.some(p =>
+      Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < 16);
+  for (const tr of snap.tracks || []) {
+    if (tr.east_m == null) continue;
+    const [x, y] = proj(tr.east_m, tr.north_m);
+    const col = iffCol(tr);
+    if (tr.confirmed) {
+      sctx.strokeStyle = col; sctx.beginPath(); sctx.arc(x, y, 6, 0, 7); sctx.stroke();
+      sctx.fillStyle = col; sctx.beginPath(); sctx.arc(x, y, 1.6, 0, 7); sctx.fill();
+    } else {
+      sctx.strokeStyle = col; sctx.beginPath();
+      sctx.moveTo(x, y - 6); sctx.lineTo(x + 6, y); sctx.lineTo(x, y + 6); sctx.lineTo(x - 6, y);
+      sctx.closePath(); sctx.stroke();
+    }
+    const label = tr.id + " " + (tr.R_km != null ? (tr.R_km * KNM).toFixed(0) : "")
+        + (tr.speed_ms != null
+            ? " " + iasKt(tr.speed_ms, tr.alt_m || 0) + " M" + mach(tr.speed_ms, tr.alt_m || 0).toFixed(2)
+            : "");
+    const w = sctx.measureText(label).width + 6;
+    let done = false;
+    for (const [lx, ly] of [[x + 12, y + 4], [x - 12, y + 4], [x, y - 13], [x, y + 18]]) {
+      if (!overlaps(lx, ly, w)) {
+        sctx.textAlign = lx > x ? "left" : (lx < x ? "right" : "center");
+        sctx.fillStyle = col;
+        sctx.fillText(label, lx, ly);
+        placed.push({ x: lx, y: ly, w, h: 12 });
+        done = true;
+        break;
+      }
+    }
+    if (!done) {
+      sctx.textAlign = "left"; sctx.fillStyle = col;
+      sctx.fillText(label, x + 12, y + 4);
+    }
+  }
+
+  /* 本机符号：N↑ 随机头转；航向↑ 恒朝上 */
+  sctx.save();
+  sctx.translate(cx, cy); if (!up) sctx.rotate(h);
+  sctx.strokeStyle = "#eafcff";
+  sctx.beginPath();
+  sctx.moveTo(0, -11); sctx.lineTo(7, 8); sctx.lineTo(0, 4); sctx.lineTo(-7, 8);
+  sctx.closePath(); sctx.stroke();
+  sctx.restore();
+
+  /* 北向标记：N↑ 固定在正上方；航向↑ 时随世界转动（北相对机头方向 = (-sh,-ch)） */
+  const nx = up ? -sh : 0, ny = up ? -ch : -1;
+  sctx.strokeStyle = COL.gridTxt;
+  sctx.beginPath();
+  sctx.moveTo(cx + nx * (rad - 13), cy + ny * (rad - 13));
+  sctx.lineTo(cx + nx * rad, cy + ny * rad);
+  sctx.stroke();
+  sctx.fillStyle = COL.gridTxt; sctx.textAlign = "center";
+  sctx.fillText("N", cx + nx * (rad - 22), cy + ny * (rad - 22) + 4);
+  $("st-scale").textContent = "俯视 ±" + half + "nm " + (up ? "航向↑" : "N↑");
+}
+
+function drawStrip(hh) {
+  ectx.clearRect(0, 0, els.getBoundingClientRect().width, hh);
+  const bars = (snap.cfg && snap.cfg.el_bars_deg) || [0];
+  const elMax = Math.max(12, ...bars.map(Math.abs), 12);
+  const yOf = el => M.t + (elMax - el) / (2 * elMax) * (hh - M.t - M.b);
+  /* 轴 */
+  ectx.strokeStyle = COL.grid;
+  ectx.beginPath(); ectx.moveTo(30, M.t); ectx.lineTo(30, hh - M.b); ectx.stroke();
+  ectx.font = "10px Consolas, monospace";
+  ectx.textAlign = "right"; ectx.fillStyle = COL.gridTxt;
+  for (const e of [-elMax, 0, elMax]) ectx.fillText(e + "°", 26, yOf(e) + 3);
+  /* 搜索条位 */
+  for (const eb of bars) {
+    const y = yOf(eb);
+    ectx.strokeStyle = "#37515f";
+    ectx.beginPath(); ectx.moveTo(34, y); ectx.lineTo(52, y); ectx.stroke();
+  }
+  /* 波束俯仰轨迹 + 当前值 */
+  const t = snap.t || 0;
+  for (const e of snap.beam_trail || []) {
+    if (e.el_deg == null) continue;
+    const age = t - (e.t || 0);
+    if (age < 0 || age > 2.5) continue;
+    ectx.fillStyle = e.purpose === "stt" ? COL.stt
+        : (e.purpose === "track" ? COL.track : COL.search);
+    ectx.globalAlpha = 0.15 + 0.7 * (1 - age / 2.5);
+    ectx.fillRect(38, yOf(e.el_deg) - 2, 10, 4);
+  }
+  ectx.globalAlpha = 1;
+  const b = snap.beam;
+  if (b && b.el_deg != null) {
+    const y = yOf(Math.max(-elMax, Math.min(elMax, b.el_deg)));
+    ectx.fillStyle = "#eafcff";
+    ectx.fillRect(36, y - 3, 14, 6);
+  }
+}
+
+$("truth").addEventListener("change", () => requestAnimationFrame(draw));
+const modeBtn = $("mode"), orientBtn = $("orient");
+function applyMode() {
+  modeBtn.textContent = mode === "plan" ? "显示：俯视图" : "显示：B-scope";
+  orientBtn.style.opacity = mode === "plan" ? 1 : 0.45;   // 仅作用于俯视图
+}
+modeBtn.addEventListener("click", () => {
+  mode = mode === "plan" ? "bscope" : "plan";
+  localStorage.setItem("aesa-mode", mode);
+  applyMode();
+  requestAnimationFrame(draw);
+});
+function applyOrient() {
+  orientBtn.textContent = planUp === "heading" ? "俯视：航向↑" : "俯视：N↑";
+}
+orientBtn.addEventListener("click", () => {
+  planUp = planUp === "heading" ? "north" : "heading";
+  localStorage.setItem("aesa-plan-up", planUp);
+  applyOrient();
+  requestAnimationFrame(draw);
+});
+applyOrient();
+applyMode();
+fit();
+</script>
+</body>
+</html>

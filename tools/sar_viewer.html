@@ -1,0 +1,1355 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>DCS SAR 地表与机场验证</title>
+<style>
+body{background:#10151b;color:#d2dfec;font:16px system-ui;margin:24px;max-width:1600px}button,select,input{font:inherit;padding:7px;background:#24313e;color:inherit;border:1px solid #627082;border-radius:4px}button:disabled{opacity:.4}canvas{image-rendering:pixelated}p{line-height:1.6}.warning{color:#f3c674}pre{white-space:pre-wrap;font-size:13px}label{display:inline-block;margin:4px 12px 4px 0}#error{color:#ff9696}
+.panels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.panel{padding:14px;background:#17212b;border:1px solid #394b5c;border-radius:6px}.panel h2{margin:0 0 10px;font-size:18px}.panel p{font-size:14px}.raster{position:relative;aspect-ratio:1;background:#090d12}.raster canvas{width:100%;height:100%;display:block}.raster .cursor{position:absolute;inset:0;image-rendering:auto}video{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#090d12}.legend{height:10px;background:linear-gradient(90deg,#19376e,#46b4a0,#ead78c);margin-top:12px}#mapCenter{font-family:monospace;user-select:all}#cursorInfo{font-family:monospace;font-size:14px;min-height:1.5em}.hint{color:#9bb0c4}.mosaic-panel{grid-column:1/-1;border-color:#42678a;background:#1a2632}.mosaic-wrap{background:#090d12;border:1px solid #26384a;border-radius:4px}#mosaic{display:block;width:100%;aspect-ratio:3/2;touch-action:none;cursor:crosshair}#mosaicReadout{font-family:monospace;font-size:14px;min-height:1.5em}#presetInfo{margin:2px 0 10px}#designationInfo{font-family:monospace;font-size:14px;min-height:1.5em}.advanced{margin:12px 0;padding:10px 12px;background:#131c25;border:1px solid #2b3b4a;border-radius:6px}.advanced>summary{cursor:pointer;color:#9bb0c4}.advanced[open]>summary{margin-bottom:6px}@media(max-width:1000px){.panels{grid-template-columns:1fr 1fr}.window-panel{grid-column:1/-1}video{aspect-ratio:16/7}}@media(max-width:620px){body{margin:12px}.panels{grid-template-columns:1fr}}.targets{margin:6px 0 6px 24px;padding:0;font-family:monospace;font-size:14px}.targets li{margin:3px 0}.targets button{padding:2px 8px;margin-left:8px;font-size:13px}#freezeInfo{margin-left:8px}
+</style>
+<h1>SAR 地表与机场验证</h1>
+<p class="warning">DCS 采集几何与地表类别 → 假设散射与局部遮挡 → 模拟复数回波 → 聚焦。建筑仅以包围盒近似；无真实材质、细节网格或校准 RCS，亮点不能据此确认为地物。</p>
+<p id="mode"></p><p id="status">等待接收端…</p>
+<div class="panels">
+ <section class="panel mosaic-panel"><h2>雷达主视图（实波束地图 + GMTI + SAR 贴片）</h2>
+  <p><button id="radarStart" disabled>开始雷达监视</button> <button id="radarStop" disabled>停止雷达监视</button> <span class="hint">＝ 连续 MAP 实波束底图巡逻：以本机为圆心、机头方向的前向扇形滚动成像（±60°、半径 20 km 为服务端默认，实际扇区见状态行），不选模式也能起。扫描范围、散射模型、聚焦器、成像档与它无关。</span></p>
+  <p id="radarStatus" class="hint">雷达监视未启动：按「开始雷达监视」让服务端按实波束粗格滚动生成扇形底图；运行中这里显示帧数、扇区口径、覆盖、格数进度与实际画质口径（多视数、多普勒锐化倍数）。</p>
+  <label><input id="mosaicFollow" type="checkbox" checked>跟随本机居中</label><label><input id="mosaicFade" type="checkbox" checked>旧图变淡</label><label><input id="mosaicPlan" type="checkbox" checked>显示扫掠计划格</label><label><input id="mosaicSector" type="checkbox" checked>显示底图扇形轮廓</label><label><input id="mosaicSar" type="checkbox" checked>显示 SAR 可成像区</label><button id="mosaicFit" disabled>适应全部图像</button><button id="clearTargets" disabled>清空目标清单</button>
+  <div class="mosaic-wrap"><canvas id="mosaic" width="960" height="640"></canvas></div>
+  <p id="mosaicInfo" class="hint">等待拼接数据：每张完成且带世界锚点的图像都会按世界坐标贴入这里。</p>
+  <p id="zoomInfo" class="hint"></p>
+  <p id="sweepInfo" class="hint"></p>
+  <p id="sectorInfo" class="hint"></p>
+  <p id="mosaicReadout">将鼠标移到拼接视图查看该处图像的元数据；拖动平移，滚轮缩放。</p>
+  <p id="designationInfo" class="hint">尚未选取指定点：在主视图或 ②③ 栏图上单击即可选取（主视图拖动仍是平移）。</p>
+  <p><button id="designateDetail" disabled>SAR 精看 128 m</button> <button id="designateArea" disabled>SAR 区域 512 m</button> <button id="designateDbs" disabled>DBS 放大 512 m</button> <button id="addTarget" disabled>加入目标清单</button></p>
+  <p id="designateStatus" class="hint">选取指定点后，这里给出服务端判定：地距、相对航迹角与是否可成像；不可成像时列出原因。DBS 放大不走 SAR 的侧视窗，近前视（|相对航迹角| &lt; 20°）时会提示锐化退化为实波束。</p>
+  <p id="targetPointInfo" class="hint">尚未加入目标点：先在主视图或 ②③ 栏选取指定点，再按「加入目标清单」。</p>
+  <ol id="targetList" class="targets"></ol>
+  <p class="hint">每张图按世界坐标中心、方位角和边长贴入，后完成的覆盖重叠区；本机符号与最近航迹取自最近一次采集的轨迹，只表示采集时刻的位置。动目标符号来自 GMTI 报告，与静止 SAR 图像不做配准（真实系统也是如此），只表示报告时刻的位置，报告变旧会变淡并标注“旧”。拼接视图只用于对照，不改变成像与采集结果。</p>
+ </section>
+ <section class="panel window-panel"><h2>① DCS / F10 实时窗口参考</h2>
+  <button id="shareF10">选择 DCS 窗口</button> <button id="stopF10" disabled>停止共享</button>
+  <p id="f10Status" class="hint">尚未共享。点击按钮，在浏览器弹窗中选择 DCS 窗口，再进入 F10 卫星视图。</p>
+  <video id="f10Video" autoplay muted playsinline></video>
+  <p>显示所选窗口的当前画面。F10 需在游戏内打开；此栏未自动定位、裁剪或与扫描区配准。返回座舱后会显示座舱。</p>
+  <p>本张扫描中心（用于在 F10 对照）：</p><p id="mapCenter">尚无已确认坐标</p><button id="copyCenter" disabled>复制中心经纬度</button><p id="copyStatus" class="hint"></p>
+ </section>
+ <section class="panel"><h2>② 同区地表输入</h2><label>显示 <select id="referenceView"><option value="height">地表高程</option><option value="surface">地表分类</option></select></label><div class="raster"><canvas id="heightImage" width="129" height="129"></canvas><canvas class="cursor" id="heightCursor" width="512" height="512"></canvas></div>
+  <div class="legend"></div><p id="heightScale">等待与 SAR 图对应的高程数据</p><p id="inputInfo" class="hint">显示成像输入；高程不含建筑屋顶。分类标签不等于雷达反射率。</p>
+ </section>
+ <section class="panel"><h2>③ 同区 SAR 模拟成像</h2><div class="raster"><canvas id="image" width="65" height="65"></canvas><canvas class="cursor" id="sarCursor" width="512" height="512"></canvas></div>
+  <p id="sarRegion">等待成像</p><p class="hint">与地表图同中心、同方向、同范围。移动鼠标联动检查；在任一图上单击即选取指定点，与主视图同一条工作流。</p>
+  <p><button id="freezeToggle">冻结显示</button> <span id="freezeInfo" class="hint">未冻结：②③ 栏跟随最新完成的一帧</span></p>
+ </section>
+</div>
+<p id="cursorInfo">将鼠标移到高程或 SAR 图查看对应位置。</p>
+<p id="capabilities" class="hint">等待接口能力探测</p>
+
+<p>连续采集会随航迹重复扫描所选范围（相对单点）或按计划格逐格覆盖扫描区（广域扫掠），无需每次对准。保持平稳飞行；每张使用 2 s 轨迹，另需地表查询和计算时间。扫描区之间可能有空隙，尚不保证覆盖所有地面。广域扫掠由服务端按圈生成计划格，格位与进度显示在主视图和状态行。MAP 底图不做孔径合成，方位分辨率就是天线波束：以本机为圆心、机头方向 ±60° 的前向扇形（半径默认 20 km）随本机前进滚动换锚，帧数、扇区口径、覆盖与采集进度显示在主视图和状态行。它不使用扫描范围、散射模型、聚焦器和成像档，也没有侧向与地距的取舍——正前方同样可看。</p>
+<label>模式预设 <select id="preset"><option value="wide">广域快扫（推荐默认）</option><option value="observe">精细观察</option><option value="inspect">局部精看</option><option value="custom">自定义：按下面逐项设置</option></select></label>
+<p id="presetInfo" class="hint">选一个预设可以一次设置好常用参数，之后仍可逐项调整；选择会被记住。</p>
+<p id="continuousStatus">连续采集未启动</p>
+<details id="continuousControls"><summary>高级：连续采集模式、录制与手动启停（雷达监视用 MAP 底图，不在这里选）</summary>
+<label>连续模式 <select id="continuousMode"><option value="relative">相对单点：重复同一选区</option><option value="sweep">广域扫掠：按计划格逐格覆盖</option><option value="map">MAP 底图：实波束粗扫大范围（滚动跟随）</option></select></label>
+<p id="modeInfo" class="hint"></p>
+<p><label><input id="recordContinuous" type="checkbox">保存每次原始采集</label>默认只保留最近数据和图像。勾选后文件会持续增长；刷新或关闭页面仍继续采集，请用停止按钮结束。</p>
+<button id="continuousStart" disabled>开始连续采集</button>
+<button id="continuousStop" disabled>停止连续采集</button>
+<p class="hint">「开始雷达监视」＝ 连续模式选 MAP 后启动：扇形参数取服务端默认（机头 ±60°、半径 20 km，状态行给出实际值），不用下面的侧向与地距——那两项留给另两种模式（相对单点、广域扫掠）。</p>
+</details>
+<label>相对地面航迹（相对单点／广域扫掠） <select id="side"><option value="1">右侧 45°</option><option value="-1">左侧 45°</option><option value="0">左右交替（仅连续采集）</option></select></label>
+<label>地距 km <input id="range" type="number" min="1" max="50" value="20" step="1" style="width:80px"></label>
+<label>扫描范围 <select id="footprint"><option value="detail">128 m 局部 · 地表网格 8 m</option><option value="area">512 m 区域 · 地表网格 16 m</option><option value="airport">2048 m 概览 · 地表网格 32 m</option></select></label>
+<label>散射模型 <select id="sceneModel"><option value="classified">分类地表 + 简化对象 + 局部遮挡</option><option value="uniform">旧模型：统一地表，无遮挡</option></select></label>
+<details><summary>单次采集或按地图坐标指定目标</summary>
+<button id="capture" disabled>按当前方向采集一次</button>
+<p>在 F10 读取机场或建筑中心经纬度，填入下方，按所选范围采集。局部选区应保留小数秒；可先用概览寻找区域，再从图上选取精看中心。建议目标在航迹左/右前方约 30–60°，地距 10–30 km，保持平飞。侧向选「左右交替」时，单次采集固定用右侧 45°（服务端只对连续采集支持左右轮流）。</p>
+<label>目标纬度 <input id="latitude" type="text" placeholder="N41°30′00.00″" style="width:190px"></label>
+<label>目标经度 <input id="longitude" type="text" placeholder="E042°15′00.00″" style="width:190px"></label>
+<button id="captureGeo" disabled>按坐标采集所选范围</button>
+<p>支持十进制度（41.5）、度和十进制分（N41 30.0）、度分秒（N41 30 00.00）。示例仅说明格式；请填写当前任务建筑的坐标。地图若显示 MGRS，先切换到经纬度。</p>
+<p id="geoStatus"></p><p id="target">尚无已确认的扫描中心</p>
+</details>
+<p id="targetSummary"></p>
+<details id="advanced"><summary>高级选项：成像档、聚焦器、聚焦窗、显示对比度、多视降斑</summary>
+<label>成像档 <select id="quality"><option value="standard">标准：75 MHz</option><option value="fine">精细：模拟带宽加倍</option><option value="fast">快速测试：出图优先，分辨率减半</option></select></label>
+<label>聚焦器 <select id="focuser"><option value="backprojection">反投影：逐像素时域（精确路径）</option><option value="pfa">PFA：极坐标格式（频域，平面波近似）</option></select></label>
+<label>聚焦窗 <select id="window"><option value="hann">Hann：降低旁瓣</option><option value="rect">矩形：保留较窄主瓣</option></select></label>
+<button id="reprocess" disabled>用当前数据重算</button>
+<p>局部：75/150 MHz，输出 1/0.5 m；512 m 区域：37.5 MHz / 4 m；2048 m 概览：10 MHz / 8 m。概览不采用局部精细档。快速测试档以出图优先：像素减半、散射单元加倍、脉冲过采样 2.5→1.5（降低过采样，可能混叠），带宽不变；实际参数见图像元数据，不能据此比较分辨率。聚焦器二选一：反投影逐像素用精确三维距离（任意地形）；PFA 走频域（逐脉冲距离 FFT → 极坐标重采样 → 二维 FFT），实测快约 8 倍，但按平面波近似成像——起伏被当作平地、适用半径受 k·r²/(2R) 相位误差限制，128 m 切片内点目标位置误差 <0.2 m，512 m 切片可出现米级位移与不同的散斑实现。所用聚焦器记录在图像元数据里。输出间距不等于地物分辨率，参数与散射系数均为项目假设。</p>
+<label>显示对比度 <select id="displayRange"><option value="30">30 dB：较强对比</option><option value="40">40 dB：保留暗部</option><option value="20">20 dB：突出亮部</option></select></label>
+<label><input id="multiLook" type="checkbox" checked>多视降斑</label><label>视数 <select id="looks"><option value="2">2×2（4 视）</option><option value="3">3×3（9 视）</option><option value="1">1×1（单视）</option></select></label>
+<p class="hint">多视只对已显示的功率矩阵做线性功率块均值，不重算回波；输出按块取整，分辨率随视数下降。</p>
+</details>
+<p id="error"></p>
+<p id="scale">横轴：视线横向 −64 → +64 m；纵轴：地距 +64 → −64 m。对比度只改变灰度显示，不改变聚焦结果。</p>
+<p id="stamp">尚未成像。地形网格间隔 8 m；插值后的散射点和输出像素不增加地形细节。</p>
+<pre id="probe"></pre><pre id="meta"></pre>
+<script>
+const el=id=>document.getElementById(id);let completed=null,busy=false,lastImage=null,lastReference=null,lastTarget=null,sharedStream=null,captureReady=false,dbsReady=false,dbsKnown=false,display=null;
+// 座舱式冻结：②③ 停在一张图上，主视图照常收新图。freeze.pending 记下冻结期间服务端已完成的那张，
+// 解冻后由下一次轮询自然显示（轮询每轮都比较 completed 与 /state 的 completed）。
+const freeze={on:false,at:null,pending:null};
+let pageStatus='';
+function freezeState(){return freeze;}
+const surfaceColors={land:[125,150,90],unknown:[90,90,90],water:[25,55,110],shallow_water:[70,180,160],road:[195,150,80],runway:[230,210,175]};
+function surfaceAt(ref,cross,ground){const col=Math.max(0,Math.min(ref.n-1,Math.round((cross/ref.size+.5)*(ref.n-1)))),row=Math.max(0,Math.min(ref.n-1,Math.round((ground/ref.size+.5)*(ref.n-1))));return ref.surfaces?.[row*ref.n+col]||'unknown';}
+function heightAt(ref,cross,ground){
+ const c=Math.max(0,Math.min(ref.n-1,(cross/ref.size+.5)*(ref.n-1))),r=Math.max(0,Math.min(ref.n-1,(ground/ref.size+.5)*(ref.n-1)));
+ const c0=Math.min(ref.n-2,Math.floor(c)),r0=Math.min(ref.n-2,Math.floor(r)),fc=c-c0,fr=r-r0,h=ref.heights,n=ref.n;
+ return (1-fr)*((1-fc)*h[r0*n+c0]+fc*h[r0*n+c0+1])+fr*((1-fc)*h[(r0+1)*n+c0]+fc*h[(r0+1)*n+c0+1]);
+}
+function dms(value,latitude){
+ const ticks=Math.round(Math.abs(value)*360000),degrees=Math.floor(ticks/360000),minutes=Math.floor(ticks%360000/6000),seconds=ticks%6000/100;
+ return `${latitude?(value<0?'S':'N'):(value<0?'W':'E')}${String(degrees).padStart(latitude?2:3,'0')}°${String(minutes).padStart(2,'0')}′${seconds.toFixed(2).padStart(5,'0')}″`;
+}
+// /state 的 reference 是描述（不含 heights/surfaces/objects）；栅格本身按 completed 拉一次。
+// 同一 completed 只拉一次；失败不改写 lastReference，由 drawReference() 报“缺少配对输入”。
+const referenceCache={completed:null,pending:null};
+async function referenceFetch(descriptor){
+ if(!descriptor||descriptor.completed!==completed)return null;
+ if(referenceCache.completed===descriptor.completed&&lastReference)return null;
+ if(referenceCache.pending&&referenceCache.pending.completed===descriptor.completed)return referenceCache.pending.promise;
+ const pending={completed:descriptor.completed,promise:null};
+ pending.promise=(async()=>{
+  try{
+   const response=await fetch('/reference');
+   if(!response.ok)throw Error(`参考输入不可用（HTTP ${response.status}）`);
+   const reference=await response.json();
+   if(reference&&reference.completed===completed&&completed!==null){lastReference=reference;referenceCache.completed=completed;drawReference();}
+  }catch(e){el('inputInfo').textContent=`本张配对输入获取失败：${e.message}`;}
+  finally{if(referenceCache.pending===pending)referenceCache.pending=null;}
+ })();
+ referenceCache.pending=pending;return pending.promise;
+}
+function drawReference(){
+ clearCursor();const ctx=el('heightImage').getContext('2d');ctx.clearRect(0,0,el('heightImage').width,el('heightImage').height);
+ el('mapCenter').textContent=lastTarget?`${dms(lastTarget.latitude,true)}  ${dms(lastTarget.longitude,false)}\n${lastTarget.latitude.toFixed(9)}°, ${lastTarget.longitude.toFixed(9)}°`:'本张无确认经纬度，无法在 F10 精确定位';
+ el('copyCenter').disabled=!lastTarget;el('copyStatus').textContent='';
+ el('sarRegion').textContent=`${lastImage.size_m} × ${lastImage.size_m} m · ${new Date(completed).toLocaleString()} · ${lastImage.source==='dcs'?'DCS 采集输入':'合成演示输入'}`;
+ if(!lastReference){el('heightScale').textContent='本张缺少对应的原始高程；不使用下一张或其他采集代替';el('inputInfo').textContent='本张缺少配对输入，无法确认地表和对象覆盖';return;}
+ const ref=lastReference,lo=Math.min(...ref.heights),hi=Math.max(...ref.heights),width=129,im=ctx.createImageData(width,width);
+ el('heightImage').width=el('heightImage').height=width;
+ for(let row=0;row<width;row++)for(let col=0;col<width;col++){
+  const h=heightAt(ref,(col/(width-1)-.5)*ref.size,(.5-row/(width-1))*ref.size),v=hi>lo?(h-lo)/(hi-lo):.5;
+  const stops=v<.5?[[25,55,110],[70,180,160],v*2]:[[70,180,160],[234,215,140],(v-.5)*2],i=(row*width+col)*4;
+  const color=el('referenceView').value==='surface'?surfaceColors[surfaceAt(ref,(col/(width-1)-.5)*ref.size,(.5-row/(width-1))*ref.size)]:null;
+  for(let j=0;j<3;j++)im.data[i+j]=color?color[j]:Math.round(stops[0][j]+(stops[1][j]-stops[0][j])*stops[2]);im.data[i+3]=255;
+ }ctx.putImageData(im,0,0);
+ el('heightScale').textContent=`蓝 ${lo.toFixed(2)} m → 黄 ${hi.toFixed(2)} m（海拔） · 起伏 ${(hi-lo).toFixed(2)} m · 每张按自身高程范围显示`;
+ if(el('referenceView').value==='surface')el('heightScale').textContent='绿：陆地；蓝：水；青：浅水；棕：道路；米白：跑道/机场铺面；灰：未知。分类显示采用最近邻。';
+ const sd=ref.scene_data;el('inputInfo').textContent=`${ref.n} × ${ref.n} 点，间隔 ${ref.size/(ref.n-1)} m · 地表分类 ${sd?.surface_provider||'未记录'} · 有包围盒对象 ${ref.objects?.length||0} · 对象接口 ${sd?.object_provider||'未记录'}${sd?` · 跳过无几何 ${sd.objects_skipped||0} / 运动对象 ${sd.moving_objects_skipped||0} · ${sd.note}`:''}。局部遮挡只检查扫描范围内的 DEM 和最多 32 个对象。`;
+}
+function clearCursor(){
+ for(const id of ['heightCursor','sarCursor'])el(id).getContext('2d').clearRect(0,0,512,512);
+ el('cursorInfo').textContent='将鼠标移到高程或 SAR 图查看对应位置。';
+}
+function inspectPoint(event){
+ if(!lastImage||!display)return;const rect=event.currentTarget.getBoundingClientRect(),u=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),v=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height));
+ for(const id of ['heightCursor','sarCursor']){const ctx=el(id).getContext('2d');ctx.clearRect(0,0,512,512);ctx.strokeStyle='#ffdc6b';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(u*512,0);ctx.lineTo(u*512,512);ctx.moveTo(0,v*512);ctx.lineTo(512,v*512);ctx.stroke();}
+ const cross=(u-.5)*lastImage.size_m,ground=(.5-v)*lastImage.size_m,w=display.width,i=Math.round((1-v)*(w-1))*w+Math.round(u*(w-1));
+ let text=`横向 ${cross.toFixed(1)} m · 地距偏移 ${ground.toFixed(1)} m · SAR ${display.db[i].toFixed(1)} dB（相对峰值${display.looks>1?`，多视 ${display.looks}×${display.looks} 块`:'，单视'}）`;
+ if(lastReference){const r=lastReference,x=r.center[0]+cross*Math.sin(r.bearing)+ground*Math.cos(r.bearing),z=r.center[2]-cross*Math.cos(r.bearing)+ground*Math.sin(r.bearing);text+=` · 地表海拔 ${heightAt(r,cross,ground).toFixed(2)} m · DCS x/z ${x.toFixed(1)} / ${z.toFixed(1)} m`;}
+ el('cursorInfo').textContent=text;
+}
+for(const id of ['heightCursor','sarCursor']){el(id).onmousemove=inspectPoint;el(id).onmouseleave=clearCursor;}
+el('referenceView').onchange=()=>{if(lastImage)drawReference();};
+// ②③ 栏点选与主视图是同一条工作流：这里只是「选取指定点」，可成像性判定和两个 SAR 按钮统一放在主视图，
+// 页面上就只有一套指定入口，用户不必先想清楚该在哪一栏点。
+for(const id of ['heightCursor','sarCursor'])el(id).onclick=event=>{
+ if(!lastReference)return;const rect=event.currentTarget.getBoundingClientRect(),u=Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),v=Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height)),r=lastReference,cross=(u-.5)*r.size,ground=(.5-v)*r.size;
+ designateWorldPoint(r.center[0]+cross*Math.sin(r.bearing)+ground*Math.cos(r.bearing),r.center[2]-cross*Math.cos(r.bearing)+ground*Math.sin(r.bearing),id==='sarCursor'?'③ 栏':'② 栏',displayedGeoAnchor());
+};
+function stopShare(message='已停止共享'){const stream=sharedStream;sharedStream=null;if(stream)for(const track of stream.getTracks()){track.onended=null;track.onmute=null;track.onunmute=null;track.stop();}el('f10Video').srcObject=null;el('stopF10').disabled=true;el('shareF10').disabled=false;el('f10Status').textContent=message;}
+el('shareF10').onclick=async()=>{
+ if(typeof navigator==='undefined'||!navigator.mediaDevices?.getDisplayMedia){el('f10Status').textContent='当前浏览器不支持窗口共享，请用 Edge / Chrome 打开本机页面';return;}
+ el('shareF10').disabled=true;
+ try{const stream=await navigator.mediaDevices.getDisplayMedia({video:{displaySurface:'window'},audio:false});sharedStream=stream;
+  const video=el('f10Video');video.srcObject=stream;video.muted=true;await video.play();el('stopF10').disabled=false;
+  const track=stream.getVideoTracks()[0];track.onended=()=>stopShare('窗口共享已结束');track.onmute=()=>{el('f10Status').textContent='共享画面暂不可用或暂停；请恢复 DCS 窗口';};track.onunmute=()=>{el('f10Status').textContent='窗口共享中 · 在 DCS 打开 F10 卫星视图；画面未与扫描区自动配准';};
+  el('f10Status').textContent='窗口共享中 · 在 DCS 打开 F10 卫星视图；画面未与扫描区自动配准';
+ }catch(e){stopShare(e.name==='NotAllowedError'?'未授权窗口共享，可再次点击选择 DCS 窗口':`窗口共享失败：${e.message}`);}
+};
+el('stopF10').onclick=()=>stopShare();
+el('copyCenter').onclick=async()=>{if(!lastTarget)return;try{await navigator.clipboard.writeText(`${dms(lastTarget.latitude,true)} ${dms(lastTarget.longitude,false)}`);el('copyStatus').textContent='中心坐标已复制';}catch(e){el('copyStatus').textContent='无法自动复制，请选择上方坐标文本手动复制';}};
+if(typeof window!=='undefined')window.addEventListener('pagehide',()=>stopShare());
+function multiLookPower(power,width,looks){
+ const out=Math.ceil(width/looks),means=[];
+ for(let r=0;r<out;r++)for(let c=0;c<out;c++){
+  let sum=0,count=0;
+  for(let dr=0;dr<looks;dr++)for(let dc=0;dc<looks;dc++){
+   const row=r*looks+dr,col=c*looks+dc;
+   if(row<width&&col<width){sum+=power[row*width+col];count++;}
+  }
+  means.push(sum/count);
+ }
+ return {width:out,power:means};
+}
+function powerDb(power){
+ let peak=0;for(const v of power)if(v>peak)peak=v;
+ return power.map(v=>peak>0?Math.max(-40,10*Math.log10(Math.max(v/peak,1e-12))):-40);
+}
+function buildDisplay(){
+ const width=lastImage.width,power=lastImage.power;
+ const looks=el('multiLook').checked&&[2,3].includes(Number(el('looks').value))?Number(el('looks').value):1;
+ if(looks===1){
+  const note=el('multiLook').checked?'本张缺少可用的线性功率，按单视显示':'单视显示，不做块平均';
+  display={width,db:lastImage.db,looks,note};
+ }else if(Array.isArray(power)&&power.length===width*width&&power.every(v=>Number.isFinite(v)&&v>=0)){
+  const block=multiLookPower(power,width,looks);
+  display={width:block.width,db:powerDb(block.power),looks,note:`多视 ${looks}×${looks} 线性功率块均值：输出 ${block.width}×${block.width} 块，分辨率按块下降`};
+ }else{
+  display={width,db:lastImage.db,looks,note:'本张缺少可用的线性功率，按单视显示'};
+ }
+}
+function statusSync(){if(!pageStatus)return;el('status').textContent=freeze.on?`${pageStatus} · 已冻结显示`:pageStatus;}
+function freezeSync(){
+ el('freezeToggle').textContent=freeze.on?'解冻显示':'冻结显示';
+ el('freezeInfo').textContent=freeze.on?`已冻结：②③ 停在 ${freeze.at?new Date(freeze.at).toLocaleTimeString():'当前'} 完成的图像${freeze.pending?'，服务端已有更新的一张待解冻显示':''}；雷达主视图继续收新图。`:'未冻结：②③ 栏跟随最新完成的一帧';
+ statusSync();
+}
+el('freezeToggle').onclick=()=>{freeze.on=!freeze.on;freeze.at=freeze.on?completed:null;freeze.pending=null;freezeSync();};
+function draw(){
+ if(!lastImage)return;buildDisplay();const width=display.width,range=Number(el('displayRange').value);
+ el('image').width=el('image').height=width;const ctx=el('image').getContext('2d'),im=ctx.createImageData(width,width);
+ for(let row=0;row<width;row++)for(let col=0;col<width;col++){const i=row*width+col,v=Math.round(Math.max(0,Math.min(1,(display.db[(width-1-row)*width+col]+range)/range))*255);im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=v;im.data[i*4+3]=255;}
+ ctx.putImageData(im,0,0);const half=lastImage.size_m/2;el('scale').textContent=`横轴：视线横向 −${half} → +${half} m；纵轴：地距 +${half} → −${half} m。峰值归一化功率：黑 −${range} dB，白 0 dB；只调整显示。${display.note}。`;
+}
+el('displayRange').onchange=()=>{draw();mosaicSchedule();};
+el('multiLook').onchange=draw;el('looks').onchange=draw;
+function coordinate(text,latitude){
+ const raw=text.trim().toUpperCase(),hemis=raw.match(/[NSEW]/g)||[],limit=latitude?90:180;
+ if(!raw||hemis.length>1||hemis.some(h=>!(latitude?'NS':'EW').includes(h))||(hemis.length&&raw.includes('-')))throw Error('坐标格式错误：检查 N/S、E/W 和正负号');
+ const parts=raw.replace(/[NSEW]/g,'').trim().split(/[\s°º′'″":]+/).filter(Boolean);
+ if(parts.length<1||parts.length>3||!parts.every((p,i)=>(i===0?/^[+-]?\d+(?:\.\d+)?$/:/^\d+(?:\.\d+)?$/).test(p)))throw Error('坐标格式错误：请输入度、度分或度分秒');
+ const values=parts.map(Number),degree=values[0];
+ if((parts.length>1&&!Number.isInteger(degree))||(parts.length===3&&!Number.isInteger(values[1]))||values.slice(1).some(v=>v>=60))throw Error('坐标格式错误：分/秒必须小于 60');
+ const magnitude=Math.abs(degree)+(values[1]||0)/60+(values[2]||0)/3600;
+ if(magnitude>limit)throw Error(`坐标超出范围：${latitude?'纬度':'经度'}不得超过 ${limit}°`);
+ const negative=hemis.length?'SW'.includes(hemis[0]):parts[0].startsWith('-');return (negative?-1:1)*magnitude;
+}
+async function request(url,params){busy=true;el('designateDetail').disabled=el('designateArea').disabled=el('designateDbs').disabled=el('addTarget').disabled=el('radarStart').disabled=el('radarStop').disabled=el('capture').disabled=el('captureGeo').disabled=el('reprocess').disabled=el('continuousStart').disabled=el('continuousStop').disabled=true;el('error').textContent='';try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({quality:el('quality').value,window:el('window').value,footprint:el('footprint').value,sceneModel:el('sceneModel').value,focuser:el('focuser').value,...params})});const v=await r.json();if(!r.ok){el('error').textContent=v.error;return false;}return true;}catch(e){el('error').textContent=e.message;return false;}finally{busy=false;designationSync();}}
+// MAP 只发 mode/record：扇形是「本机为圆心、机头 ±azimuth、半径 range」的服务端口径（默认 ±60°、20 km），
+// 页面没有对应控件，也不该把「地距」和「侧向」硬塞进去——它们对扇形没有位置。多视数与多普勒锐化倍数同样
+// 不传（没有 looks/beam 字段）：页面上的「视数」是 ③ 栏显示用的多视降斑选择，不是采集参数，服务端默认即可。
+// 其余成像字段照旧随请求发出，MAP 分支不读它们。
+// 两个入口共用一条命令：主视图的「开始雷达监视」（写死 MAP 底图巡逻）与折叠区里的连续采集下拉（三选一）。
+// 先把下拉框写到将要请求的模式，控件禁用状态（MAP 用不到的项）立刻跟上，不必等下一次轮询。
+function startContinuous(mode){
+ el('continuousMode').value=mode;sweep.requested=mode;modeSync();
+ const shared={record:!!el('recordContinuous').checked,mode};
+ return request('/continuous/start',mode==='map'?shared:{...shared,side:Number(el('side').value),range:Number(el('range').value)*1000});
+}
+el('radarStart').onclick=()=>startContinuous('map');
+el('radarStop').onclick=()=>request('/continuous/stop',{});
+el('continuousStart').onclick=()=>startContinuous(['relative','sweep','map'].includes(el('continuousMode').value)?el('continuousMode').value:'relative');
+el('continuousStop').onclick=()=>request('/continuous/stop',{});
+el('capture').onclick=()=>request('/capture',{side:Number(el('side').value)||1,range:Number(el('range').value)*1000}); // 侧向「左右交替」只对连续采集有意义，单拍按右侧 45°
+el('captureGeo').onclick=async()=>{try{await request('/capture',{latitude:coordinate(el('latitude').value,true),longitude:coordinate(el('longitude').value,false)});}catch(e){el('error').textContent=e.message;}};
+el('reprocess').onclick=()=>request('/reprocess',{});
+// 雷达主视图（世界坐标画布）：把每张完成的图像按世界锚点贴进同一张画布，实波束 MAP 底图、GMTI 报告、
+// 扫掠计划格、目标清单与 SAR 贴片都叠在这里。x/z 是 DCS 世界坐标（x=北、z=东），屏幕右=+x、下=+z。
+// SAR 贴片按场景栅格：横向 cross 沿 (sin b, −cos b)、纵向 ground 沿 (cos b, sin b)；MAP 贴片按
+// grid_layout='col_x_row_z' 直接 col→+x、row→+z，不转置也不套用场景旋转。
+// /state 每 700 ms 轮询，mosaic 只带摘要；每张矩阵按 seq 经 /image/<seq> 各取一次（Int8，值 = dB×4）。
+const mosaicNoData=-128;  // Int8 下限：db×4 的量化只会落在 −127…0，所以它是 MAP 扇形“无数据”的哨兵
+const mosaic={entries:[],images:new Map(),pending:new Set(),limit:50,dropped:0,misses:0,seq:null,first:null,latest:null,
+ note:'尚未收到拼接数据',own:null,view:{x:0,z:0,scale:0},follow:true,fade:true,dirty:false,fetching:false,drag:null,cursor:null,frame:0,hover:null,
+ movers:null,moversKnown:false,moversNote:null,sector:null,outline:true,sarWindow:true};  // movers：/state 的 GMTI 报告（null=桥不可用），moversKnown=服务端是否上报过该字段；sector=本圈底图扇形口径（null=服务端没报）；outline/sarWindow=两个叠加层的开关
+const mosaicQuality={standard:'标准',fine:'精细',fast:'快速测试'},mosaicFocuser={backprojection:'反投影',pfa:'PFA'};
+// 广域扫掠计划：服务端每圈重新生成 sweepPlan（世界坐标锚点，与 mosaic 条目同语义），/state 的
+// continuous.sweepIndex 指出正在拍/即将拍的格子。前端只在主视图叠加仍待拍摄的格子：done 的格子
+// 已有图像，不再画框；skipped 只作短暂标记，避免长期占用画面。
+// 旧服务端没有 mode/sweepPlan/sweepIndex 时 modeKnown 为 false，扫掠文字与计划格全部消失，页面
+// 回到只有相对单点的行为；有计划但缺 mode 时按广域扫掠显示（至少知道有格子要拍）。
+// 这个对象同时记 continuous.mode 的第三种值 'map'（MAP 底图）：它没有计划格，状态行的 MAP 段另读 /state.map。
+const sweep={mode:'relative',requested:null,modeKnown:false,running:false,plan:[],index:null,marks:new Map(),visible:true,snapshot:''};
+const sweepSkipMarkMs=4000;
+function sweepState(){return sweep;}
+function sweepCellValid(cell){return !!cell&&Array.isArray(cell.center)&&Number.isFinite(cell.center[0])&&Number.isFinite(cell.center[2])&&Number.isFinite(cell.bearing)&&Number.isFinite(cell.size_m)&&cell.size_m>0;}
+// 与贴图同一换算：cross 沿 (sin b, −cos b)、ground 沿 (cos b, sin b)。方框按 center/bearing/size_m
+// 对齐（不含贴图为覆盖整像元而外扩的半个像元）。
+function sweepCellCorners(cell){
+ const half=cell.size_m/2,sin=Math.sin(cell.bearing),cos=Math.cos(cell.bearing),cx=cell.center[0],cz=cell.center[2];
+ return [[-half,-half],[half,-half],[half,half],[-half,half]].map(([cross,ground])=>[cx+cross*sin+ground*cos,cz-cross*cos+ground*sin]);
+}
+// 服务端给状态；没给（或只有 sweepIndex）时，当前格按“正在拍”显示，done/skipped 不被下标覆盖。
+function sweepCellStatus(cell,index,current){
+ const status=cell.status;
+ if(status==='capturing'||status==='done'||status==='skipped')return status;
+ return index===current?'capturing':'pending';
+}
+function sweepStyle(status){
+ if(status==='capturing')return {color:'#ffd166',lineWidth:2.5,dash:[],cross:false};
+ if(status==='skipped')return {color:'#ff7a5c',lineWidth:1.5,dash:[4,3],cross:true};
+ return {color:'#8b9cb0',lineWidth:1.5,dash:[9,5],cross:false};
+}
+function sweepOverlayCells(plan,marks,current,now=Date.now()){
+ const cells=[],list=Array.isArray(plan)?plan:[];
+ for(let index=0;index<list.length;index++){
+  if(!sweepCellValid(list[index]))continue;
+  const status=sweepCellStatus(list[index],index,current);
+  if(status==='done')continue;
+  if(status==='skipped'){const mark=marks&&marks.get(index);if(!mark||now-mark.at>sweepSkipMarkMs)continue;}
+  cells.push({index,status,center:[list[index].center[0],list[index].center[2]],corners:sweepCellCorners(list[index])});
+ }
+ return cells;
+}
+function sweepSameCell(a,b){return !!a&&!!b&&a.center[0]===b.center[0]&&a.center[2]===b.center[2]&&a.bearing===b.bearing&&a.size_m===b.size_m;}
+function sweepSnapshot(mode,index,plan){return JSON.stringify([mode,index,plan.map(cell=>[cell.center[0],cell.center[2],cell.bearing,cell.size_m,cell.status??null])]);}
+// 每 700 ms 轮询都调用。标记时间只在“同一格由非跳过变成跳过”或换格时重置，否则跳过标记会被反复刷新、永不消失。
+function sweepApplyState(continuous){
+ const source=continuous&&typeof continuous==='object'?continuous:null;
+ const raw=source&&Array.isArray(source.sweepPlan)?source.sweepPlan:[];
+ const plan=[];for(const cell of raw)if(sweepCellValid(cell))plan.push(cell);
+ const index=source&&Number.isSafeInteger(source.sweepIndex)&&source.sweepIndex>=0?source.sweepIndex:null;
+ const explicit=source?(['sweep','relative','map'].includes(source.mode)?source.mode:null):null;
+ const mode=explicit||(plan.length?'sweep':'relative');
+ const now=Date.now(),marks=new Map();
+ for(let i=0;i<plan.length;i++){
+  if(plan[i].status!=='skipped')continue;
+  const before=sweep.plan[i],known=sweep.marks.get(i);
+  marks.set(i,before&&before.status==='skipped'&&sweepSameCell(before,plan[i])&&known?known:{at:now});
+ }
+ const snapshot=sweepSnapshot(mode,index,plan),changed=snapshot!==sweep.snapshot,drawing=plan.length>0||sweep.plan.length>0;
+ sweep.plan=plan;sweep.index=index;sweep.mode=mode;sweep.modeKnown=!!explicit||plan.length>0;sweep.marks=marks;sweep.snapshot=snapshot;
+ sweep.running=!!(source&&source.enabled);
+ if(changed&&drawing)mosaic.dirty=true;
+ return changed;
+}
+// 状态行与主视图说明文字；没有 mode 字段时返回空串/空行，保持旧版文字。
+function sweepProgressText(){
+ if(!sweep.modeKnown)return '';
+ if(sweep.mode==='map')return '';  // MAP 的进度在同一行的 MAP 段里，这里不重复
+ if(sweep.mode!=='sweep')return '相对单点';
+ if(!sweep.plan.length)return '广域扫掠：等待计划';
+ return sweep.index!==null&&sweep.index<sweep.plan.length?`广域扫掠 第 ${sweep.index+1}/${sweep.plan.length} 格`:`广域扫掠 共 ${sweep.plan.length} 格`;
+}
+function sweepInfoText(){
+ if(!sweep.plan.length)return '';
+ const counts={pending:0,capturing:0,done:0,skipped:0};
+ for(let index=0;index<sweep.plan.length;index++)counts[sweepCellStatus(sweep.plan[index],index,sweep.index)]++;
+ const head=`${sweep.running?'本圈计划':'上次计划'} ${sweep.plan.length} 格：待拍 ${counts.pending}、正在拍 ${counts.capturing}、已完成 ${counts.done}、已跳过 ${counts.skipped}`;
+ return sweep.visible?`${head}。计划格画在雷达主视图上：灰=待拍，亮=正在拍，红叉=刚跳过；已完成的格子直接显示图像。`:`${head}。计划格轮廓已隐藏（勾选“显示扫掠计划格”重新显示）。`;
+}
+function continuousStatusText(continuous,running){
+ // MAP 的产出是底图帧而不是 SAR 张数：连续 MAP 的 completed 恒为 0，也没有扫掠进度，这一段改由
+ // /state.map 组成（帧数、扇区口径、覆盖、正在采的格数），底图停在空中（保留帧）时同样显示。
+ const mapLive=sweep.mode==='map'&&!!map.payload&&(running||map.payload.active||map.payload.frames>0);
+ const parts=[running?'连续采集已开启':'连续采集未运行'];
+ if(mapLive)parts.push(mapStatusText(map.payload));else parts.push(`已完成 ${continuous.completed} 张`);
+ const note=mapLive&&map.payload.note?map.payload.note:continuous.note;
+ if(note)parts.push(note);
+ if(running){
+  const progress=sweepProgressText();if(progress)parts.push(progress);
+  const cell=sweep.mode==='sweep'?sweep.plan[sweep.index]:null;
+  const sector=mapSectorText(map.payload);
+  // MAP 没有侧向与地距，这一段换成扇形口径；它已经在 MAP 段里时不重复。
+  if(sweep.mode==='map'){if(sector&&!mapLive)parts.push(sector);}
+  else if(cell&&Number.isFinite(cell.rangeM))parts.push(`${cell.side===1?'右':cell.side===-1?'左':'左右交替'}侧 · 地距 ${(cell.rangeM/1000).toFixed(1)} km`);
+  else parts.push(`${continuous.side===1?'右':continuous.side===-1?'左':'左右交替'}侧 45° / ${continuous.range/1000} km`);
+  parts.push(continuous.record?'原始数据保存开启':'未开启持续录制');
+  if(sweep.requested==='sweep'&&!sweep.modeKnown)parts.push('服务端未报告扫掠模式，可能仍按相对单点采集');
+ }
+ return parts.join(' · ');
+}
+// ---- MAP 实波束底图（连续模式 mode:'map'） --------------------------------------------------
+// /state.map 给出底图会话状态：frames（已渲染帧数）、coverage（扇区覆盖率）、cells（世界栅格已采格数）、
+// progress（正在跑的采集任务进度）、note（人读状态），底图帧本身走既有 mosaic 通道。页面只在状态行显示
+// 这些字段，并管住 MAP 用不到的控件。
+// 扫描形状是「本机为圆心、机头方向 ±azimuth_deg 的前向扇形、外半径 range_m」：window.sector 给出锚定时的
+// heading_deg/azimuth_deg/range_m，map.params 给出同一组数值（服务端默认 ±60°、20 km）。扇形没有侧向，
+// 半径也不是「地距」控件的那个量，所以起拍命令不带 side/range，运行中也不回填这两项。
+// MAP 不聚焦成像：服务端启动 MAP 时会写 quality:'map'、footprint:'map'、window/focuser:'real-beam'，
+// 这些是 mosaic 条目的占位元数据，不是下拉框能表达的取值。所以选中 MAP 时禁用这些项，轮询也不把它们
+// 回填控件——否则会清空用户的选择，并被记忆功能存成空值。
+const map={payload:null};
+function mapState(){return map;}
+// DBS 放大小块（POST /dbs，MAP 家族）：产物同样走 mosaic 通道（条目 mode:'dbs'），/state.dbs 给出
+// {active,note,lastFrame}。它只借这里的 payload 显示状态，成像与拼接不经过 MAP 的那套窗口逻辑。
+const dbs={payload:null};
+function dbsState(){return dbs;}
+const mapUnused=['footprint','sceneModel','focuser','quality','side','range'];
+function mapSelected(){return el('continuousMode').value==='map';}
+function modeSync(running=false){
+ const mapMode=mapSelected();
+ for(const id of mapUnused)el(id).disabled=running||busy||mapMode;
+ el('modeInfo').textContent=mapMode?'MAP 底图以本机为圆心、机头方向的 ±60° 前向扇形滚动成像（半径与服务端默认见状态行）：不使用扫描范围、散射模型、聚焦器、成像档，也没有侧向与地距的位置——这六项已禁用。':'';
+}
+// 装在这里（prefsWatch 之前）：onchange 会被它包装，切换模式照常走预设反推与记忆保存。
+el('continuousMode').onchange=()=>modeSync();
+// 扇形口径：window.sector（锚定时的航向、半张角、外半径）优先，其次是服务端把窗格对象本身塞进 window
+// （同一个对象里带 azimuth_deg/range_m，与 sar_map.cjs 的 windowSector() 同形），最后退回 params 的同名项。
+// 只认明确的扇区字段，不拿旧方窗口径的 angle/range/span 充数——那几个量是中心方位与地距，不是半宽与外半径。
+// 三处都没有（旧服务端）返回 null，状态行保持「窗口」的旧文案。圆心（window.center，[x,z]）一并给出：
+// 扇形轮廓要用它当顶点，缺了就不画线（数值照样显示）。
+function mapSectorInfo(summary){
+ const source=summary&&typeof summary==='object'?summary:null;
+ const window=source&&source.window&&typeof source.window==='object'?source.window:null;
+ const candidates=[window?.sector,window,source?.sector,source?.params];
+ const sector=candidates.find(item=>item&&typeof item==='object'&&(Number.isFinite(item.range_m)||Number.isFinite(item.azimuth_deg)))||null;
+ if(!sector)return null;
+ const radiusM=Number.isFinite(sector.range_m)?sector.range_m:null;
+ const halfDeg=Number.isFinite(sector.azimuth_deg)?Math.abs(sector.azimuth_deg):null;
+ if(radiusM===null&&halfDeg===null)return null;
+ // 航向按度报 heading_deg；引擎内部的 heading 是弧度（|值| ≤ 2π），转发出来时按弧度换算，大数值按度。
+ const headingRad=Number.isFinite(sector.heading)&&Math.abs(sector.heading)<=2*Math.PI+1e-9?sector.heading:null;
+ const headingDeg=Number.isFinite(sector.heading_deg)?sector.heading_deg:headingRad!==null?headingRad*180/Math.PI:Number.isFinite(sector.heading)?sector.heading:null;
+ const anchor=Array.isArray(window?.center)?window.center:Array.isArray(sector.center)?sector.center:null;
+ return {radiusM,halfDeg,headingDeg,x:anchor&&Number.isFinite(anchor[0])?anchor[0]:null,z:anchor&&Number.isFinite(anchor[1])?anchor[1]:null};
+}
+function mapSectorText(summary){
+ const info=mapSectorInfo(summary);if(!info)return '';
+ const parts=[];
+ if(info.halfDeg!==null)parts.push(`扇区 ±${info.halfDeg.toFixed(0)}°`);
+ if(info.radiusM!==null)parts.push(`半径 ${(info.radiusM/1000).toFixed(1)} km`);
+ return parts.join('、');
+}
+// 状态行里的 MAP 段。progress 是正在跑的采集任务进度（形如“地图 1204/14641”）；没有任务时按窗口覆盖率与
+// 窗口格数还原已采/总格数（仅方窗口径），再退到世界栅格总数；字段缺失就少显示一段，不编造数字。
+function mapCellsText(summary){
+ const running=typeof summary.progress==='string'?summary.progress.match(/(\d+)\s*\/\s*(\d+)/):null;
+ if(running)return `采集中 ${running[1]}/${running[2]} 格`;
+ const cells=summary.window?.cells,total=Number.isInteger(cells)&&cells>0?cells*cells:null;
+ // 扇形口径下 window.cells 是外接方窗的边长、coverage 只算扇区里的格，两者不能相乘：此时宁可不给格数，
+ // 也不报一个把扇区外的空格算进去的假数字。
+ if(total&&Number.isFinite(summary.coverage)&&!mapSectorInfo(summary))return `采集中 ${Math.round(summary.coverage*total)}/${total} 格`;
+ return Number.isSafeInteger(summary.cells)&&summary.cells>0?`已采集 ${summary.cells} 格`:'';
+}
+// 巡逻帧的“画质口径”短注记，接在 MAP 段末尾。三个字段都是可选的，旧服务端一个都不给，这段就是空串：
+//  · params.looks>1 → “N 视”：服务端实际用的多视数（页面的“视数”下拉只管 ③ 栏显示，不是它）。
+//  · params.dbs_factor>0 → “多普勒锐化 F:1”：0 或缺省=不锐化，不提。
+//  · 最新一张 mode:'map' 条目的 entry.dbs.effective 为 partly-sharpened/real-beam 时补一句退化提示：
+//    前视区（多普勒梯度近零）拿不到方位锐化，退化成实波束画质。说“退化”的前提是这一帧真的开了锐化——
+//    该帧自己的 entry.dbs.factor 优先，缺了才用会话的 params.dbs_factor；明确为 0 时本来就该是实波束，不加噪。
+const dbsEffectiveText={'partly-sharpened':'前视区退化实波束','real-beam':'整帧退化实波束'};
+function latestMosaicEntry(mode){
+ for(let index=mosaic.entries.length-1;index>=0;index--)if(mosaic.entries[index]&&mosaic.entries[index].mode===mode)return mosaic.entries[index];
+ return null;
+}
+function mapPatrolText(summary){
+ const params=summary&&typeof summary.params==='object'&&summary.params?summary.params:null;
+ if(!params)return '';
+ const parts=[];
+ const looks=Number.isFinite(params.looks)?params.looks:null;
+ if(looks!==null&&looks>1)parts.push(`${looks} 视`);
+ const factor=Number.isFinite(params.dbs_factor)?params.dbs_factor:null;
+ if(factor!==null&&factor>0)parts.push(`多普勒锐化 ${factor}:1`);
+ const entry=latestMosaicEntry('map'),dbs=entry&&entry.dbs&&typeof entry.dbs==='object'?entry.dbs:null;
+ const effective=dbs&&typeof dbs.effective==='string'?dbsEffectiveText[dbs.effective]:null;
+ const sharpened=dbs&&Number.isFinite(dbs.factor)?dbs.factor:factor;
+ if(effective&&sharpened!==0)parts.push(effective);
+ return parts.join(' · ');
+}
+function mapStatusText(summary){
+ if(!summary||typeof summary!=='object')return '';
+ const parts=[];
+ if(Number.isFinite(summary.frames))parts.push(`已渲染 ${summary.frames} 帧`);
+ const sector=mapSectorText(summary);if(sector)parts.push(sector);
+ if(Number.isFinite(summary.coverage))parts.push(`${sector?'扇区覆盖':'窗口覆盖'} ${Math.round(summary.coverage*100)}%`);
+ const cells=mapCellsText(summary);if(cells)parts.push(cells);
+ const patrol=mapPatrolText(summary);if(patrol)parts.push(patrol);
+ return parts.length?`MAP 底图：${parts.join(' · ')}`:'MAP 底图';
+}
+// 主视图状态行：只复用 /state.map 的字段（帧数、扇区口径、覆盖、格数、多视与锐化口径）与 note，不重复别的
+// 状态行已经说过的内容。连续采集停在别的模式时说清楚「底图没在跑」，否则用户会以为按钮没生效。DBS 放大小块
+// （/state.dbs）挂在同一行：它是一次性的旁路成像，没有自己的面板，采集与完成只在 note 里说。
+function dbsStatusText(summary){
+ if(!summary||typeof summary!=='object')return '';
+ const note=typeof summary.note==='string'&&summary.note?summary.note:null;
+ const parts=[note||(summary.active?'采集/计算中':'空闲')];
+ const frame=summary.lastFrame;
+ if(frame&&Number.isFinite(frame.seq))parts.push(`最近一块 #${frame.seq}`);
+ return `DBS 放大：${parts.join(' · ')}`;
+}
+function radarStatusText(running){
+ const summary=map.payload,text=mapStatusText(summary),note=summary&&typeof summary.note==='string'&&summary.note?summary.note:null;
+ const dbsText=dbsStatusText(dbs.payload)||null;
+ if(running&&sweep.mode==='map')return `雷达监视进行中 · ${[text,note,'可对指定点做 SAR 精看',dbsText].filter(Boolean).join(' · ')}`;
+ if(running)return `连续采集进行中（${sweep.mode==='sweep'?'广域扫掠':'相对单点'}），MAP 底图未运行：按「开始雷达监视」切换到底图巡逻。`;
+ if(text)return `雷达监视已停止，已出的底图帧仍留在画布上 · ${[text,note,dbsText].filter(Boolean).join(' · ')}`;
+ return ['雷达监视未启动：按「开始雷达监视」让服务端按实波束粗格滚动生成扇形底图，GMTI 报告与 SAR 贴片叠在同一张世界坐标画布上',dbsText].filter(Boolean).join(' · ');
+}
+function mosaicSinCos(entry){return [Math.sin(entry.bearing||0),Math.cos(entry.bearing||0)];}
+// MAP frames carry their own matrix layout: 'col_x_row_z' means col -> world +x and row -> world +z,
+// the canonical grid the Export and the service collect on. Such a tile is drawn directly from its
+// col/row (canvas x = +x, canvas y = +z), never transposed into the SAR cross/ground convention.
+// Old MAP snapshots have no grid_layout and keep the historical scene-grid interpretation.
+function mosaicGridLayout(entry){return !!entry&&entry.grid_layout==='col_x_row_z';}
+// texel (col,row) ↔ 世界坐标：步长 size_m/(width−1)。SAR 贴片 col 沿横轴、row 沿纵轴（与 ③ 栏存储
+// 约定相同）；MAP 贴片按自己的 grid_layout 解释。
+function mosaicTexelToWorld(entry,col,row,width=entry.width){
+ const half=(width-1)/2,step=entry.size_m/(width-1),[sin,cos]=mosaicSinCos(entry),cx=entry.center[0],cz=entry.center[2];
+ if(mosaicGridLayout(entry))return [cx+(col-half)*step,cz+(row-half)*step];
+ const cross=(col-half)*step,ground=(row-half)*step;
+ return [cx+cross*sin+ground*cos,cz-cross*cos+ground*sin];
+}
+function mosaicWorldToTexel(entry,x,z,width=entry.width){
+ const half=(width-1)/2,step=entry.size_m/(width-1),[sin,cos]=mosaicSinCos(entry),dx=x-entry.center[0],dz=z-entry.center[2];
+ if(mosaicGridLayout(entry))return [dx/step+half,dz/step+half];
+ return [(dx*sin-dz*cos)/step+half,(dx*cos+dz*sin)/step+half];
+}
+function mosaicWorldToScreen(view,width,height,x,z){return {x:(x-view.x)*view.scale+width/2,y:(z-view.z)*view.scale+height/2};}
+function mosaicScreenToWorld(view,width,height,x,y){return {x:view.x+(x-width/2)/view.scale,z:view.z+(y-height/2)/view.scale};}
+// 贴入范围比标称边长各大半个像元，取整后与逐像素 col=round(...) 的覆盖范围一致；重叠处后贴的覆盖先贴的。
+function mosaicCorners(entry,width){const edge=width-.5;return [[-0.5,-0.5],[edge,-0.5],[edge,edge],[-.5,edge]].map(([col,row])=>mosaicTexelToWorld(entry,col,row,width));}
+// 视野适配：center 为空时取图像包围盒中心；给出 center（跟随时为本机）时，按离中心最远的一角定比例，
+// 保证跟随居中的第一帧里本机与全部图像都在画布内。开关打开时把计划格也算进去：计划格画在画布上，
+// 取景就跟着画布内容走，否则广域扫掠的格子会一直落在视野外。整圈计划跨度可达 60 km，这会把
+// 512 m 图像压成十几个像素——这是显示本身的比例问题，滚轮放大即可细看。
+function mosaicFitView(width,height,center=null){
+ const boxes=[];
+ for(const entry of mosaic.entries)if(mosaic.images.has(entry.seq))boxes.push(mosaicCorners(entry,entry.width));
+ if(sweep.visible)for(const cell of sweep.plan)if(sweepCellValid(cell))boxes.push(sweepCellCorners(cell));
+ if(!boxes.length)return null;
+ let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
+ for(const box of boxes)for(const [x,z] of box){minX=Math.min(minX,x);maxX=Math.max(maxX,x);minZ=Math.min(minZ,z);maxZ=Math.max(maxZ,z);}
+ const cx=center?center[0]:(minX+maxX)/2,cz=center?center[1]:(minZ+maxZ)/2;
+ const across=Math.max(1,cx-minX,maxX-cx),depth=Math.max(1,cz-minZ,maxZ-cz);
+ return {x:cx,z:cz,scale:Math.max(.005,Math.min(40,Math.min(width/(2*across),height/(2*depth))*.9))};
+}
+function mosaicDefaultScale(width,height){
+ const newest=[...mosaic.entries].reverse().find(entry=>mosaic.images.has(entry.seq));
+ return Math.max(.01,Math.min(40,Math.min(width,height)/Math.max(1,(newest?newest.size_m:512)*1.5)));
+}
+function mosaicFollowView(){
+ const pos=mosaic.own&&mosaic.own.pos;if(!Array.isArray(pos)||!Number.isFinite(pos[0])||!Number.isFinite(pos[2]))return false;
+ mosaic.view.x=pos[0];mosaic.view.z=pos[2];return true;
+}
+// 格坐标 → 灰度：小数格坐标的四邻双线性加权。250 m 的格在地图上放大后是一块块方块，最近邻取样让
+// 分辨率本来就粗的底图显得更假；双线性只是把已有四个格的读数按距离摊开，不产生新的细节，也不改
+// bearing 旋转与视图变换（col/row 依旧沿横轴/纵轴）。
+// 哨兵安全：四个插值邻点里只要有一个是 −128（无数据），就退回最近邻那个格的值——−128 一旦进加权
+// 就是 −32 dB，会在扇形边缘与未采集格周围画出一圈并不存在的暗边。中心格自己是哨兵时调用方已经跳过。
+function mosaicTexelDb(tile,col,row,nearest){
+ const n=tile.width,db=tile.db;
+ if(n<2)return nearest;  // 1×1 图没有邻格可插值（正常情况下不会出现，缺了也别插出 NaN 黑点）
+ const fc=Math.min(n-2,Math.max(0,Math.floor(col))),fr=Math.min(n-2,Math.max(0,Math.floor(row)));
+ const base=fr*n,a=db[base+fc],b=db[base+fc+1],c=db[base+n+fc],d=db[base+n+fc+1];
+ if(a===mosaicNoData||b===mosaicNoData||c===mosaicNoData||d===mosaicNoData)return nearest;
+ const wc=Math.min(1,Math.max(0,col-fc)),wr=Math.min(1,Math.max(0,row-fr));
+ const top=a+(b-a)*wc,bottom=c+(d-c)*wc;
+ return top+(bottom-top)*wr;
+}
+function mosaicPaintTile(data,width,height,view,entry,alpha,range){
+ const tile=mosaic.images.get(entry.seq),n=tile.width,scale=view.scale,step=entry.size_m/(n-1),half=(n-1)/2;
+ const corners=mosaicCorners(entry,n),xs=corners.map(point=>point[0]),zs=corners.map(point=>point[1]);
+ const x0=Math.max(0,Math.floor((Math.min(...xs)-view.x)*scale+width/2)),x1=Math.min(width-1,Math.ceil((Math.max(...xs)-view.x)*scale+width/2));
+ const y0=Math.max(0,Math.floor((Math.min(...zs)-view.z)*scale+height/2)),y1=Math.min(height-1,Math.ceil((Math.max(...zs)-view.z)*scale+height/2));
+ const sin=Math.sin(entry.bearing),cos=Math.cos(entry.bearing),cx=entry.center[0],cz=entry.center[2],mapLayout=mosaicGridLayout(entry);let painted=0;
+ for(let y=y0;y<=y1;y++){
+  const dz=view.z+(y-height/2)/scale-cz;
+  for(let x=x0;x<=x1;x++){
+   const dx=view.x+(x-width/2)/scale-cx;
+   // col/row 取小数：取整只用来判越界与查哨兵，灰度走四邻双线性。MAP 用 canonical col=x/row=z。
+   const col=mapLayout?dx/step+half:(dx*sin-dz*cos)/step+half,row=mapLayout?dz/step+half:(dx*cos+dz*sin)/step+half;
+   const nc=Math.round(col),nr=Math.round(row);
+   if(nc<0||nr<0||nc>=n||nr>=n)continue;
+   const nearest=tile.db[nr*n+nc];
+   // −128（Int8 下限）是 MAP 扇形的“无数据”哨兵：这一格在扇形外或还没采到。跳过不画，让底层旧图或
+   // 背景透出来，扇形的弧形边缘就是由这些空格连成的；SAR 帧的量化钳在 −127，不会撞上这个值。
+   if(nearest===mosaicNoData)continue;
+   const db=mosaicTexelDb(tile,col,row,nearest);
+   const value=Math.max(0,Math.min(1,(db/4+range)/range))*255,index=(y*width+x)*4;
+   data[index]+=(value-data[index])*alpha;data[index+1]+=(value-data[index+1])*alpha;data[index+2]+=(value-data[index+2])*alpha;
+   painted++;
+  }
+ }
+ return painted;
+}
+function mosaicPaint(data,width,height,view,range){
+ for(let i=0;i<width*height;i++){const index=i*4;data[index]=9;data[index+1]=13;data[index+2]=18;data[index+3]=255;}
+ const total=mosaic.entries.length;
+ for(let rank=0;rank<total;rank++){
+  const entry=mosaic.entries[rank];if(!mosaic.images.has(entry.seq))continue;
+  mosaicPaintTile(data,width,height,view,entry,mosaic.fade&&total>1?.45+.55*(rank/(total-1)):1,range);
+ }
+}
+function mosaicGridStep(scale){const target=110/scale;for(const step of [10,20,50,100,200,500,1000,2000,5000,10000,20000,50000])if(step>=target)return step;return 100000;}
+// 计划格轮廓：只有待拍/在拍/刚跳过的格子需要画（done 的图像已经在画布上）。灰虚线=待拍，
+// 亮实线加序号=正在拍，红虚线加叉=刚跳过。开关关掉后不留任何痕迹。
+function sweepDraw(ctx,width,height,view,now){
+ if(!sweep.visible||!sweep.plan.length)return 0;
+ const cells=sweepOverlayCells(sweep.plan,sweep.marks,sweep.index,now);
+ for(const cell of cells){
+  const style=sweepStyle(cell.status),points=cell.corners.map(([x,z])=>mosaicWorldToScreen(view,width,height,x,z));
+  ctx.save();ctx.strokeStyle=style.color;ctx.lineWidth=style.lineWidth;ctx.setLineDash(style.dash);ctx.beginPath();
+  points.forEach((point,index)=>index?ctx.lineTo(point.x,point.y):ctx.moveTo(point.x,point.y));
+  ctx.closePath();ctx.stroke();
+  if(style.cross){ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);ctx.lineTo(points[2].x,points[2].y);ctx.moveTo(points[1].x,points[1].y);ctx.lineTo(points[3].x,points[3].y);ctx.stroke();}
+  if(cell.status==='capturing'){
+   const point=mosaicWorldToScreen(view,width,height,cell.center[0],cell.center[1]);
+   ctx.fillStyle=style.color;ctx.fillRect(point.x-2,point.y-2,4,4);
+   ctx.font='12px system-ui';ctx.fillText(`第 ${cell.index+1} 格`,point.x+7,point.y-7);
+  }
+  ctx.restore();
+ }
+ return cells.length;
+}
+// ---- 扇形轮廓（MAP 的当前扫描范围） ---------------------------------------------------------
+// 服务端锚定的扇形画在主视图上：圆心、两条边线加外半径弧，让「现在扫的是哪儿、扫多远」一眼可见。
+// 圆心优先用 MAP 会话自己的位姿（底图帧就是按它渲染的），没有才退回主视图的本机符号；两者最多差一个
+// 换锚阈值，轮廓只作示意，不参与成像、贴图或取景。
+const sectorColor='rgba(122,196,255,.55)',sectorApexColor='rgba(122,196,255,.75)';
+function sectorOutline(){
+ const summary=map.payload;
+ if(!summary||typeof summary!=='object'||!(summary.active||summary.frames>0))return null;
+ const info=mapSectorInfo(summary);
+ if(!info||!(info.radiusM>0)||!(info.halfDeg>0)||info.headingDeg===null)return null;
+ const pose=summary.pose&&Array.isArray(summary.pose.pos)?summary.pose.pos:null,own=mosaic.own&&mosaic.own.pos;
+ const center=pose&&Number.isFinite(pose[0])&&Number.isFinite(pose[2])?pose:own;
+ if(!Array.isArray(center)||!Number.isFinite(center[0])||!Number.isFinite(center[2]))return null;
+ return {x:center[0],z:center[2],heading:info.headingDeg*Math.PI/180,half:Math.min(90,info.halfDeg)*Math.PI/180,range:info.radiusM};
+}
+// 锚点或口径一变就重画一次（每轮 /state 都到这里；key 没变就不动 dirty 标志）。
+let sectorSnapshot='';
+function sectorSync(){
+ const info=sectorOutline(),key=info?[info.x,info.z,info.heading,info.half,info.range].join(','):'';
+ if(key===sectorSnapshot)return false;
+ sectorSnapshot=key;return true;
+}
+// 扇形在世界坐标里由三个量决定：圆心、航向、半径；边线方向取 heading±azimuth。世界方向角 φ 的点是
+// (sin φ, cos φ)·r——与 Export 的 relative = heading − bearing 同一套角，±60° 对称所以左右无关。
+function sectorDraw(ctx,width,height,view){
+ const sector=sectorOutline();if(!sector)return 0;
+ const at=angle=>mosaicWorldToScreen(view,width,height,sector.x+Math.sin(angle)*sector.range,sector.z+Math.cos(angle)*sector.range);
+ const left=sector.heading+sector.half,right=sector.heading-sector.half,apex=mosaicWorldToScreen(view,width,height,sector.x,sector.z);
+ if(!Number.isFinite(apex.x)||!Number.isFinite(apex.y))return 0;
+ const steps=64,start=at(right);
+ ctx.save();ctx.strokeStyle=sectorColor;ctx.lineWidth=1.5;ctx.setLineDash([]);ctx.beginPath();
+ for(const angle of [right,left]){const edge=at(angle);ctx.moveTo(apex.x,apex.y);ctx.lineTo(edge.x,edge.y);}
+ ctx.moveTo(start.x,start.y);
+ for(let i=1;i<=steps;i++){const point=at(right+(left-right)*i/steps);ctx.lineTo(point.x,point.y);}
+ ctx.stroke();
+ ctx.fillStyle=sectorApexColor;ctx.beginPath();ctx.arc(apex.x,apex.y,2.5,0,2*Math.PI);ctx.fill();
+ ctx.restore();
+ return 1;
+}
+// ---- SAR 可成像区（航迹两侧的“兔耳朵”） -------------------------------------------------------
+// 侧视 SAR 的几何窗口不是机头前方，而是航迹左右各 20–160°、地距 1–50 km 的两块环扇形：正前方与正后方
+// 有多普勒盲区，只有侧向才有足够的横向孔径。这三个数与服务端 /designate/check 的判据同源（大 X 就是这里
+// 的盲区），画出来是为了让用户在点选之前就知道哪里能成像、哪里会被拒绝，省掉一次点完才发现的往返。
+// 可成像窗口只有一个来源：/state 的能力段（服务端由生成的 protocol 配置给出 20–160° / 1–50 km）。
+// 页面不再保存这三个数字的第二份副本；未收到能力段时不画那一层。
+const imageWindow={minAngleDeg:null,maxAngleDeg:null,minRangeM:null,maxRangeM:null,known:false};
+function imageWindowSync(capabilities,window){
+ const w=window||(capabilities&&capabilities.image_window);if(!w)return imageWindow.known=false;
+ const values=[w.min_angle_deg,w.max_angle_deg,w.min_range_m,w.max_range_m];
+ if(!values.every(v=>Number.isFinite(v)&&v>=0))return imageWindow.known=false;
+ Object.assign(imageWindow,{minAngleDeg:w.min_angle_deg,maxAngleDeg:w.max_angle_deg,minRangeM:w.min_range_m,maxRangeM:w.max_range_m,known:true});
+ return true;
+}
+const sarWindowColor='rgba(120,214,160,.5)';
+// 环扇形摊成一圈屏幕折线：先沿外弧从 heading−half 走到 heading+half，再沿内弧走回来。世界坐标算完再投影，
+// 避免直接算 canvas 角度（屏幕 y 向下，弧的起止方向容易搞反），折线也省掉对 ctx.arc 角度参数的依赖。
+function sarRing(view,width,height,cx,cz,headingDeg,halfDeg,rMin,rMax,steps=48){
+ const points=[];
+ for(const [radius,backward] of [[rMax,false],[rMin,true]])
+  for(let i=0;i<=steps;i++){
+   const t=(backward?steps-i:i)/steps,angle=(headingDeg-halfDeg+2*halfDeg*t)*Math.PI/180;
+   points.push(mosaicWorldToScreen(view,width,height,cx+Math.sin(angle)*radius,cz+Math.cos(angle)*radius));
+  }
+ return points;
+}
+function sarWindowDraw(ctx,width,height,view){
+ const own=mosaic.own,pos=own&&own.pos;
+ if(!mosaic.sarWindow||!imageWindow.known||!Array.isArray(pos)||!Number.isFinite(pos[0])||!Number.isFinite(pos[2]))return 0;
+ const heading=(Number.isFinite(own.heading_deg)?own.heading_deg:0),
+  centre=(imageWindow.minAngleDeg+imageWindow.maxAngleDeg)/2,half=(imageWindow.maxAngleDeg-imageWindow.minAngleDeg)/2;
+ ctx.save();ctx.strokeStyle=sarWindowColor;ctx.lineWidth=1;ctx.setLineDash([5,5]);
+ let drawn=0;
+ for(const sign of [1,-1]){
+  const points=sarRing(view,width,height,pos[0],pos[2],heading+sign*centre,half,imageWindow.minRangeM,imageWindow.maxRangeM);
+  ctx.beginPath();points.forEach((point,index)=>index?ctx.lineTo(point.x,point.y):ctx.moveTo(point.x,point.y));ctx.closePath();ctx.stroke();drawn++;
+ }
+ const label=sarRing(view,width,height,pos[0],pos[2],heading+centre,0,imageWindow.maxRangeM*.6,imageWindow.maxRangeM*.6,1)[0];
+ ctx.font='12px system-ui';ctx.fillText(`SAR 可成像区 ±${imageWindow.minAngleDeg}–${imageWindow.maxAngleDeg}°`,label.x+6,label.y-6);
+ ctx.restore();
+ return drawn;
+}
+// 叠加层的说明行：什么在画、按什么口径画、以及关掉开关后画不出来的是哪一层。
+function sectorInfoText(){
+ const sector=sectorOutline(),parts=[],ownship=Array.isArray(mosaic.own?.pos)&&Number.isFinite(mosaic.own.pos[0])&&Number.isFinite(mosaic.own.pos[2]);
+ if(!mosaic.outline)parts.push('底图扇形轮廓已隐藏（勾选“显示底图扇形轮廓”重新显示）');
+ else if(sector)parts.push(`底图扇形：±${(sector.half/Math.PI*180).toFixed(0)}° / 半径 ${(sector.range/1000).toFixed(1)} km · 圆心 ${sector.x.toFixed(0)} / ${sector.z.toFixed(0)} m · 航向 ${(sector.heading/Math.PI*180).toFixed(0)}°；扇区外与未采集的像元不绘制（旧帧或背景透出）`);
+ else if(map.payload)parts.push('服务端未报告底图扇形的口径或位姿：轮廓不画（新服务端在 /state.map 里给出 sector 与 pose）');
+ if(!mosaic.sarWindow)parts.push('SAR 可成像区已隐藏（勾选“显示 SAR 可成像区”重新显示）');
+ else if(!imageWindow.known)parts.push('服务端未报告可成像窗口：这一层不画（新服务端在 /state.imageWindow 里给出）');
+ else if(ownship)parts.push(`SAR 可成像区：航迹左右各 ${imageWindow.minAngleDeg}–${imageWindow.maxAngleDeg}°、地距 ${imageWindow.minRangeM/1000}–${imageWindow.maxRangeM/1000} km 的环扇形（正前/正后是盲区，与服务端判定同源）`);
+ return parts.join(' · ');
+}
+function mosaicOverlay(ctx,width,height,view){
+ const min=mosaicScreenToWorld(view,width,height,0,0),max=mosaicScreenToWorld(view,width,height,width,height),step=mosaicGridStep(view.scale);
+ ctx.save();ctx.strokeStyle='#233547';ctx.lineWidth=1;ctx.beginPath();
+ for(let x=Math.ceil(min.x/step)*step;x<=max.x;x+=step){const point=mosaicWorldToScreen(view,width,height,x,0);ctx.moveTo(point.x,0);ctx.lineTo(point.x,height);}
+ for(let z=Math.ceil(min.z/step)*step;z<=max.z;z+=step){const point=mosaicWorldToScreen(view,width,height,0,z);ctx.moveTo(0,point.y);ctx.lineTo(width,point.y);}
+ ctx.stroke();ctx.restore();
+ if(mosaic.outline)sectorDraw(ctx,width,height,view);
+ sarWindowDraw(ctx,width,height,view);
+ sweepDraw(ctx,width,height,view,Date.now());
+ zoomFlashDraw(ctx,width,height,view,Date.now());  // 刚跳转到的指定产物：亮青方框，几秒后自己消失
+ targetsDraw(ctx,width,height,view);designationDraw(ctx,width,height,view);moversDraw(ctx,width,height,view);
+ const own=mosaic.own;
+ if(own&&Array.isArray(own.track)&&own.track.length>1){
+  ctx.save();ctx.strokeStyle='#f3c674';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();
+  own.track.forEach(([x,z],index)=>{const point=mosaicWorldToScreen(view,width,height,x,z);index?ctx.lineTo(point.x,point.y):ctx.moveTo(point.x,point.y);});
+  ctx.stroke();ctx.restore();
+ }
+ if(own&&Array.isArray(own.pos)&&Number.isFinite(own.pos[0])){
+  // heading_deg 与 ② 栏航迹方位同一算法（atan2(dx,dz)），屏幕方向即 (sin,cos)。
+  const point=mosaicWorldToScreen(view,width,height,own.pos[0],own.pos[2]),heading=(own.heading_deg||0)*Math.PI/180;
+  const dir={x:Math.sin(heading),y:Math.cos(heading)},side={x:-dir.y,y:dir.x};
+  ctx.save();ctx.fillStyle='#7ef0c0';ctx.strokeStyle='#0d1a22';ctx.lineWidth=1;ctx.beginPath();
+  ctx.moveTo(point.x+dir.x*11,point.y+dir.y*11);
+  ctx.lineTo(point.x-dir.x*7+side.x*6,point.y-dir.y*7+side.y*6);
+  ctx.lineTo(point.x-dir.x*7-side.x*6,point.y-dir.y*7-side.y*6);
+  ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+ }
+ const bar=Math.min(width-26,step*view.scale),bottom=height-14;
+ ctx.save();ctx.strokeStyle='#9bb0c4';ctx.lineWidth=2;ctx.beginPath();
+ ctx.moveTo(12,bottom);ctx.lineTo(12+bar,bottom);ctx.moveTo(12,bottom-5);ctx.lineTo(12,bottom+5);ctx.moveTo(12+bar,bottom-5);ctx.lineTo(12+bar,bottom+5);ctx.stroke();
+ ctx.fillStyle='#9bb0c4';ctx.font='12px system-ui';ctx.fillText(step>=1000?`${step/1000} km`:`${step} m`,12,bottom-8);ctx.restore();
+}
+function mosaicSize(canvas){
+ const width=Math.max(320,Math.round(canvas.clientWidth||canvas.width||320)),height=Math.max(200,Math.round(canvas.clientHeight||canvas.height||200));
+ if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
+ return [width,height];
+}
+function mosaicDraw(){
+ const canvas=el('mosaic'),[width,height]=mosaicSize(canvas);
+ if(!(mosaic.view.scale>0)){
+  const pos=mosaic.own&&mosaic.own.pos;
+  // 跟随开启时按本机取景，否则按图像本身取景；两者都无（或缺少矩阵）时退回单张尺寸的视野。
+  const fit=mosaicFitView(width,height,mosaic.follow&&Array.isArray(pos)?[pos[0],pos[2]]:null);
+  mosaic.view=fit||{x:0,z:0,scale:mosaicDefaultScale(width,height)};
+ }
+ if(mosaic.follow)mosaicFollowView();
+ const ctx=canvas.getContext('2d'),image=ctx.createImageData(width,height);
+ mosaicPaint(image.data,width,height,mosaic.view,Number(el('displayRange').value));
+ ctx.putImageData(image,0,0);mosaicOverlay(ctx,width,height,mosaic.view);
+ mosaic.dirty=false;mosaicStatus();
+ if(mosaic.cursor)mosaicCursorReadout();
+}
+function moversSummary(){
+ if(!mosaic.moversKnown)return '';
+ const stale=moversList().some(mover=>moverStyle(mover).stale)?'（含过期报告）':'';
+ // 服务端给了 moversNote 就用它的说法：它带多普勒门限与降级原因（径向门限、桥未就绪、查询失败），
+ // 比页面自己数个数更准确；没有该字段时才退回本地计数。
+ if(!mosaic.movers)return `动目标层不可用${mosaic.moversNote?`：${mosaic.moversNote}`:'（任务桥未连接）'}`;
+ return mosaic.moversNote?`动目标：${mosaic.moversNote}${stale}`:`动目标 ${mosaic.movers.length} 个${stale}`;
+}
+function mosaicStatus(){
+ el('mosaicFit').disabled=!mosaic.images.size&&!(sweep.visible&&sweep.plan.length);
+ el('sweepInfo').textContent=sweepInfoText();
+ el('sectorInfo').textContent=sectorInfoText();  // 叠加层说明：画的是什么口径、哪一层被开关关掉了
+ const movers=moversSummary();  // 只在上报过 movers 字段时才谈动目标层，旧服务端不显示任何相关文字
+ el('mosaicInfo').textContent=`已贴入 ${mosaic.images.size} / 本地保留 ${mosaic.entries.length} 张（服务端上限 ${mosaic.limit}，已丢弃 ${mosaic.dropped} 张${mosaic.misses?`，未取回 ${mosaic.misses} 张`:''}）· 最新序号 ${mosaic.latest===null?'—':'#'+mosaic.latest} · ${mosaic.view.scale.toFixed(2)} px/m · ${mosaic.follow?'跟随本机居中':'自由查看'} · ${mosaic.note}${movers?` · ${movers}`:''}`;
+ el('zoomInfo').textContent=zoomInfoText();  // 跳转后的提示行只活几秒，过期后这里自动清空
+}
+// ---- 指定产物“出图即跳转” ---------------------------------------------------------------------
+// DBS/SAR 的产物要等服务端算完才贴进拼接层；在 0.04 px/m 的视野里 512 m 的块只有 20 px、128 m 的切片只有
+// 5 px，用户会以为点了没反应。所以按钮按下时记下一个 60 秒内有效的期望（dbs/sar + 指定点位置），第一次出现
+// 同 mode、完成时间不早于点击、且贴片盖住指定点的新条目时：居中到条目中心、放大到条目边长约占画布短边 60%、
+// 关掉«跟随本机居中»（否则下一帧就被拉回本机），再给该条目画几秒醒目描边。
+// 连续采集自动贴入的条目不会触发：relative/sweep 下服务端会拒绝手动采集（request 失败即撤掉期望），MAP 巡逻帧
+// mode:'map' 不在期望表里，再加上“贴片必须盖住指定点”的检查，别处/自动拍到的条目都匹配不上。
+const zoomTarget={mode:null,label:'',x:null,z:null,at:0,ttlMs:60000};
+const zoomFlash={seq:null,until:0,label:''};
+const zoomFlashMs=6000;         // 描边与提示行的存活时间
+const zoomFill=0.6;             // 条目边长占画布短边的比例
+function zoomFlashActive(now=Date.now()){return zoomFlash.seq!==null&&now<zoomFlash.until;}
+function clearZoomFlash(){
+ const was=zoomFlash.seq!==null;
+ zoomFlash.seq=null;zoomFlash.until=0;zoomFlash.label='';
+ if(was)mosaic.dirty=true;          // 让描边在下一帧真的被擦掉
+}
+function armPendingZoom(mode,label,x,z){
+ zoomTarget.mode=mode;zoomTarget.label=label;zoomTarget.x=Number.isFinite(x)?x:null;zoomTarget.z=Number.isFinite(z)?z:null;zoomTarget.at=Date.now();
+ clearZoomFlash();                  // 新的指定作废上一次的描边
+}
+function disarmPendingZoom(){zoomTarget.mode=null;zoomTarget.label='';zoomTarget.x=null;zoomTarget.z=null;zoomTarget.at=0;}
+// 在“刚贴入的条目”里找这一发的产物：mode 一致、完成时间不早于点击（服务重启后整份 state 里的旧图不算）、
+// 且贴片盖住指定点（连续采集在别处拍的 'sar' 条目因此不会误触发）。找不到就继续等，直到超时。
+function pendingZoomEntry(entries){
+ if(!zoomTarget.mode)return null;
+ if(Date.now()-zoomTarget.at>zoomTarget.ttlMs){disarmPendingZoom();return null;}
+ for(let index=entries.length-1;index>=0;index--){
+  const entry=entries[index];
+  if(!entry||entry.mode!==zoomTarget.mode)continue;
+  if(Number.isFinite(entry.completed)&&entry.completed<zoomTarget.at-5000)continue;
+  if(zoomTarget.x!==null&&zoomTarget.z!==null&&Array.isArray(entry.center)&&Number.isFinite(entry.size_m)
+    &&Math.hypot(entry.center[0]-zoomTarget.x,entry.center[2]-zoomTarget.z)>entry.size_m/2+1)continue;
+  return entry;
+ }
+ return null;
+}
+// 跳转：居中 + 比例。缩放上限/下限沿用滚轮（0.005–40 px/m），离屏/缺字段的条目不跳。
+function zoomToEntry(entry){
+ if(!entry||!Array.isArray(entry.center)||!Number.isFinite(entry.center[0])||!Number.isFinite(entry.center[2]))return false;
+ if(!(Number.isFinite(entry.size_m)&&entry.size_m>0))return false;
+ const [width,height]=mosaicSize(el('mosaic')),short=Math.min(width,height);
+ mosaic.view.x=entry.center[0];mosaic.view.z=entry.center[2];
+ mosaic.view.scale=Math.max(.005,Math.min(40,short*zoomFill/entry.size_m));
+ mosaic.follow=false;el('mosaicFollow').checked=false;
+ zoomFlash.seq=entry.seq;zoomFlash.until=Date.now()+zoomFlashMs;zoomFlash.label=zoomTarget.label||'指定产物';
+ disarmPendingZoom();
+ mosaic.dirty=true;
+ return true;
+}
+function zoomInfoText(){
+ return zoomFlashActive()?`${zoomFlash.label}完成：已跳转到该块，滚轮可继续放大`:'';
+}
+// 描边：与扫掠计划格同一套 center/bearing/size_m 换算（方框贴住条目自己的世界边界），亮青实线 2 px。
+// center 必须是条目的 [x,y,z] 三元组——sweepCellCorners 读 center[2] 当 z。
+function zoomFlashDraw(ctx,width,height,view,now){
+ if(!zoomFlashActive(now))return 0;
+ const entry=mosaic.entries.find(item=>item.seq===zoomFlash.seq);if(!entry)return 0;
+ const corners=sweepCellCorners({center:entry.center,bearing:entry.bearing||0,size_m:entry.size_m})
+   .map(([x,z])=>mosaicWorldToScreen(view,width,height,x,z));
+ ctx.save();ctx.strokeStyle='#5ad1ff';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();
+ corners.forEach((point,index)=>index?ctx.lineTo(point.x,point.y):ctx.moveTo(point.x,point.y));
+ ctx.closePath();ctx.stroke();ctx.restore();
+ return 1;
+}
+// DBS 放大小块的放大倍数来自图像元数据（metadata.dbs.factor，服务端默认 8:1）。缺字段就按 8:1 说，
+// 不编造别的档位：这个数字是显示用的，不参与成像。
+function dbsFactor(entry){
+ const source=entry&&typeof entry==='object'?entry:null;
+ const metadata=source&&source.metadata&&typeof source.metadata==='object'?source.metadata:null;
+ const nested=source&&source.dbs&&typeof source.dbs==='object'?source.dbs:null;
+ const raw=(metadata&&metadata.dbs&&Number.isFinite(metadata.dbs.factor)?metadata.dbs.factor:null)??(nested&&Number.isFinite(nested.factor)?nested.factor:null)??(Number.isFinite(source?.dbs_factor)?source.dbs_factor:null);
+ return raw&&raw>0?raw:8;
+}
+function mosaicReadout(hit){
+ mosaic.hover=hit?hit.entry:null;
+ if(!hit){el('mosaicReadout').textContent='将鼠标移到拼接视图查看该处图像的元数据；拖动平移，滚轮缩放。';return;}
+ const entry=hit.entry,center=entry.center||[0,0,0];
+ // DBS 条目要与 MAP 底图、SAR 贴片分开说：它是同一块 MAP 家族的小块，放大倍数写在元数据里。
+ const kind=entry.mode==='dbs'?` · dbs · ${dbsFactor(entry)}:1`:'';
+ // 这一格若是哨兵 −128，画面看到的是底图或背景，读数就要说明本格没有数据，而不是把图元数据说成这格的取值。
+ const tile=mosaic.images.get(entry.seq),row=Math.round(hit.row),col=Math.round(hit.col);
+ const blank=tile&&row>=0&&col>=0&&row<tile.width&&col<tile.width&&tile.db[row*tile.width+col]===mosaicNoData?' · 本格无数据（扇形外或尚未采集）':'';
+ el('mosaicReadout').textContent=`#${entry.seq} · ${new Date(entry.completed).toLocaleString()} · ${entry.size_m} × ${entry.size_m} m · ${entry.width}×${entry.width}${kind} · ${mosaicQuality[entry.quality]||entry.quality||'档未知'} · ${mosaicFocuser[entry.focuser]||entry.focuser||'聚焦器未知'} · 计算 ${Number.isFinite(entry.compute_ms)?entry.compute_ms:'—'} ms · 方位 ${((entry.bearing||0)*180/Math.PI).toFixed(1)}° · 中心 x/z ${Number(center[0]).toFixed(1)} / ${Number(center[2]).toFixed(1)} · 源 ${entry.source}${entry.record?` · ${entry.record}`:''}${blank}`;
+}
+function mosaicPick(x,y){
+ const canvas=el('mosaic'),world=mosaicScreenToWorld(mosaic.view,canvas.width,canvas.height,x,y);
+ for(let index=mosaic.entries.length-1;index>=0;index--){
+  const entry=mosaic.entries[index],tile=mosaic.images.get(entry.seq);if(!tile)continue;
+  const [col,row]=mosaicWorldToTexel(entry,world.x,world.z,tile.width);
+  if(col>=-0.5&&row>=-0.5&&col<=tile.width-.5&&row<=tile.width-.5)return {entry,col,row};
+ }
+ return null;
+}
+function mosaicState(){return mosaic;}
+// ---- 坐标工作流：指定点 → 服务端判定 → SAR 精看 ----------------------------------------------
+// 真实 SAR 的产物是目标经纬度，而世界坐标没有对外的反转换接口。页面用一张带 TARGET 经纬度的图像做锚点：
+// 该图的 target.latitude/longitude 就是它中心（entry.center）的经纬度，于是在局部切平面上近似换算——
+// DCS 世界 x 向东、z 向南，故 dlat = −dz/111320、dlon = dx/(111320·cos lat)。没有带经纬度的图像时只记
+// DCS 世界坐标，不编造经纬度。目标点只存在于页面，刷新即清空。
+const targets=[];let nextTargetId=1;
+const metersPerDegree=111320;
+function targetsState(){return targets;}
+function worldToGeo(anchor,worldX,worldZ){
+ if(!anchor)return null;
+ return {latitude:anchor.latitude-(worldZ-anchor.z)/metersPerDegree,
+  longitude:anchor.longitude+(worldX-anchor.x)/(metersPerDegree*Math.cos(anchor.latitude*Math.PI/180))};
+}
+// ②③ 栏点选的锚点：就是当前显示那张图的 target 与 reference.center（两者同一点，缺一不能当锚点）。
+function displayedGeoAnchor(){
+ if(!lastTarget||!lastReference||!Array.isArray(lastReference.center))return null;
+ const latitude=lastTarget.latitude,longitude=lastTarget.longitude;
+ if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||!Number.isFinite(lastReference.center[0])||!Number.isFinite(lastReference.center[2]))return null;
+ return {x:lastReference.center[0],z:lastReference.center[2],latitude,longitude,seq:null};
+}
+// 主视图点选的锚点：先取点击处那张图，其次最新一张带经纬度的图像，都没有才退回当前显示图（与 ②③ 栏同一个锚点）。
+function mosaicGeoAnchor(entry){
+ for(const candidate of [entry,...[...mosaic.entries].reverse()]){
+  if(!candidate||!candidate.target||!Array.isArray(candidate.center))continue;
+  const latitude=candidate.target.latitude,longitude=candidate.target.longitude;
+  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||!Number.isFinite(candidate.center[0])||!Number.isFinite(candidate.center[2]))continue;
+  return {x:candidate.center[0],z:candidate.center[2],latitude,longitude,seq:Number.isSafeInteger(candidate.seq)?candidate.seq:null};
+ }
+ return displayedGeoAnchor();
+}
+function targetPointText(point){
+ const world=`DCS x/z ${point.worldX.toFixed(0)} / ${point.worldZ.toFixed(0)} m`;
+ if(point.latitude===null||point.longitude===null)return `T${point.id} · ${world}（本机图像未回报 target 经纬度，无法换算）`;
+ return `T${point.id} · ${point.latitude.toFixed(6)}°, ${point.longitude.toFixed(6)}° · ${dms(point.latitude,true)} ${dms(point.longitude,false)} · ${world}${point.anchorSeq===null?'':'（按 #'+point.anchorSeq+' 锚点做局部平面近似）'}`;
+}
+// ---- 指定点与 SAR 精看（雷达主视图的工作流） --------------------------------------------------
+// F-15E 的 HRM/SAR 是先选点、再判断这一发能不能打：几何不满足就直接给无效提示（手册里的“大 X”），
+// 而不是等到采集失败。这里拆成三步：单击只做「选取」（世界坐标 + 可推算的经纬度 + 相对本机地距与方位），
+// 再问服务端 /designate/check 要几何判定（1–50 km 且相对航迹角在 20–160° 侧视窗内），可成像才点亮两个
+// SAR 按钮，不可成像就把 reasons 原样摆在按钮旁边。flightIssue 是飞行状态劝告（速度/垂速/航迹），
+// 只劝告不阻断。判定结论会随本机继续飞行而变旧，但页面不自动重查（700 ms 轮询里发问太吵）：再点一次即可刷新。
+const designation={point:null,token:0,check:null,error:null,checking:false,drawn:''};
+function designationState(){return designation;}
+// 相对本机航向：正右、负左，与 Export 的 TARGET 相对角同一约定（Export 用 atan2(dz,dx) 求目标方位、减去
+// atan2(vz,vx) 求航迹方位；下面对 heading_deg 的两个投影与它等价），差一个符号就会把左右说反。
+// 页面自己算这一行是为了在 /designate/check 回话之前就有读数；服务端判定的 relative_track_deg 照它自己
+// 的说法原样显示（那是以最近一次采集的平均速度为准的“相对航迹”），不在这里替它改符号。
+function ownshipRelative(worldX,worldZ){
+ const own=mosaic.own,pos=own&&own.pos;
+ if(!Array.isArray(pos)||!Number.isFinite(pos[0])||!Number.isFinite(pos[2]))return null;
+ const dx=worldX-pos[0],dz=worldZ-pos[2],heading=(Number.isFinite(own.heading_deg)?own.heading_deg:0)*Math.PI/180,sin=Math.sin(heading),cos=Math.cos(heading);
+ return {rangeKm:Math.hypot(dx,dz)/1000,angleDeg:Math.atan2(dz*sin-dx*cos,dx*sin+dz*cos)*180/Math.PI};
+}
+function designationInfoText(){
+ const point=designation.point;
+ if(!point)return '尚未选取指定点：在主视图或 ②③ 栏图上单击即可选取（主视图拖动仍是平移）。';
+ const geo=point.latitude===null?'（本机图像未回报 target 经纬度，无法换算）':`${point.latitude.toFixed(6)}°, ${point.longitude.toFixed(6)}°${point.anchorSeq===null?'':'（按 #'+point.anchorSeq+' 锚点做局部平面近似）'}`;
+ const relative=ownshipRelative(point.worldX,point.worldZ);
+ const own=relative?` · 距本机地距 ${relative.rangeKm.toFixed(1)} km · 相对本机航向 ${relative.angleDeg>=0?'右':'左'} ${Math.abs(relative.angleDeg).toFixed(0)}°`:'';
+ return `指定点（${point.source}）· DCS x/z ${point.worldX.toFixed(0)} / ${point.worldZ.toFixed(0)} m · ${geo}${own}`;
+}
+function designationGeometryText(check){
+ const parts=[];
+ if(Number.isFinite(check.range_km))parts.push(`地距 ${check.range_km.toFixed(1)} km`);
+ if(Number.isFinite(check.relative_track_deg))parts.push(`相对航迹 ${check.relative_track_deg>=0?'右':'左'} ${Math.abs(check.relative_track_deg).toFixed(0)}°`);
+ if(check.side===1||check.side===-1)parts.push(check.side===1?'右侧':'左侧');
+ return parts.join(' · ');
+}
+// 近前视劝告：|相对航迹角| < 20° 时多普勒梯度不足，DBS 锐化失效、退化成实波束画质——这是物理不是错误，
+// 所以 DBS 按钮照常可用，只把话说清楚；SAR 那两个按钮的禁用逻辑由服务端判定（ok/reasons）管，两者不混。
+const dbsNearForwardDeg=20;
+function dbsNearForward(check){
+ return !!check&&Number.isFinite(check.relative_track_deg)&&Math.abs(check.relative_track_deg)<dbsNearForwardDeg;
+}
+function designationCheckText(){
+ if(!designation.point)return '选取指定点后，这里给出服务端判定：地距、相对航迹角与是否可成像；不可成像时列出原因。';
+ if(designation.error)return `不可成像：${designation.error}`;
+ const check=designation.check;
+ if(!check)return designation.checking?'正在向服务端确认该点能否成像…':'';
+ const reasons=Array.isArray(check.reasons)?check.reasons.filter(reason=>typeof reason==='string'&&reason):[];
+ const parts=[check.ok?'可成像':`不可成像：${reasons.length?reasons.join('；'):'服务端未给出原因'}`];
+ const geometry=designationGeometryText(check);if(geometry)parts.push(geometry);
+ if(typeof check.flightIssue==='string'&&check.flightIssue)parts.push(`飞行状态劝告：${check.flightIssue}（不阻断成像）`);
+ if(check.ok&&!captureReady)parts.push('但服务端当前不能接单（SAR 忙、未在 MAP 巡逻或未连接），按钮暂不可按');
+ // DBS 的话只在服务端真的上报过 canDbs/dbs 时说：旧服务端没有这条路，页面不该替它宣告一个按钮。
+ if(dbsKnown){
+  if(dbsNearForward(check))parts.push(`近前视（相对航迹 ${Math.abs(check.relative_track_deg).toFixed(0)}° < ${dbsNearForwardDeg}°）：DBS 放大可用，但锐化失效、退化为实波束画质`);
+  if(!dbsReady)parts.push('DBS 放大暂不可用（服务端忙或未连接）');
+ }
+ return parts.join(' · ');
+}
+function designationReady(){return !busy&&captureReady&&!!designation.point&&!!(designation.check&&designation.check.ok);}
+// DBS 只要求「有指定点 + canDbs」：它不走 SAR 的 20–160° 侧视窗，近前视也能拍（只是画质退化），
+// 所以不能挂在 designationReady() 上，否则正前方恰恰是唯一能用 DBS 的地方却被禁用。
+function dbsReadyFor(){return !busy&&dbsReady&&!!designation.point;}
+function designationSync(){
+ el('designationInfo').textContent=designationInfoText();
+ el('designateStatus').textContent=designationCheckText();
+ el('designateDetail').disabled=!designationReady();
+ el('designateArea').disabled=!designationReady();
+ el('designateDbs').disabled=!dbsReadyFor();
+ el('addTarget').disabled=!designation.point||busy;
+ const drawn=designation.point?`${designation.point.worldX},${designation.point.worldZ}`:'';
+ if(drawn!==designation.drawn){designation.drawn=drawn;mosaicSchedule();}  // 只在选取真的变了时重画，别每次轮询都贴一遍
+}
+// 选取本身不动目标清单：清单是「加入目标清单」按钮的事。
+function designateWorldPoint(worldX,worldZ,source,anchor=null){
+ if(!Number.isFinite(worldX)||!Number.isFinite(worldZ))return null;
+ const geo=worldToGeo(anchor,worldX,worldZ);
+ designation.point={worldX,worldZ,latitude:geo?geo.latitude:null,longitude:geo?geo.longitude:null,anchorSeq:anchor?anchor.seq:null,source};
+ designation.check=null;designation.error=null;designation.checking=false;
+ clearZoomFlash();  // 选了新的指定点：上一次跳转的描边让位
+ designationSync();designationCheck();
+ return designation.point;
+}
+function designateScreenPoint(x,y,source){
+ const canvas=el('mosaic'),hit=mosaicPick(x,y),world=mosaicScreenToWorld(mosaic.view,canvas.width,canvas.height,x,y);
+ mosaic.cursor={x,y};
+ return designateWorldPoint(world.x,world.z,source,mosaicGeoAnchor(hit&&hit.entry));
+}
+// 判定走 GET（不改服务端状态）。响应可能晚于下一次点选：带 token 丢掉过期结果，否则旧判定会盖住新点。
+async function designationCheck(){
+ const point=designation.point;if(!point)return;
+ const token=++designation.token;
+ designation.checking=true;designationSync();
+ try{
+  const response=await fetch(`/designate/check?x=${point.worldX.toFixed(2)}&z=${point.worldZ.toFixed(2)}`);
+  if(token!==designation.token)return;
+  let payload=null;try{payload=await response.json();}catch(e){payload=null;}
+  if(response.ok&&payload&&typeof payload==='object'){designation.check=payload;designation.error=null;}
+  else{designation.check=null;designation.error=payload&&payload.error?payload.error:`服务端未提供可成像性判定（HTTP ${response.status}）`;}
+ }catch(e){if(token!==designation.token)return;designation.check=null;designation.error=e.message;}
+ designation.checking=false;designationSync();
+}
+// 三个指定按钮都先挂上“出图即跳转”的期望再发请求：产物要等服务端算完才出现，届时第一张匹配的贴片会被
+// 居中放大。请求被拒（连续采集占着、SAR 忙、未连接）就撤掉期望——失败时 error 栏已有说明，不让它空等 60 秒。
+function designationCapture(footprint){
+ const point=designation.point;if(!point||!designationReady())return;
+ armPendingZoom('sar',footprint==='area'?'SAR 区域成像':'SAR 精看',point.worldX,point.worldZ);
+ return request('/capture',{worldX:point.worldX,worldZ:point.worldZ,footprint,quality:'fine'}).then(ok=>{if(!ok)disarmPendingZoom();return ok;});
+}
+// DBS 放大小块：同一指定点的第三条路（MAP 家族，约 1 s 出图，产物走 mosaic 通道，不占 ②③ 栏）。
+// 请求按契约给 {x,z,span_m,sharpen}：x 就是世界 x（与 worldX 同义），span 默认 512 m，锐化默认 8，这里都写明，
+// 免得按钮上写的 512 m 与服务端默认各说一套。
+function designationDbs(){
+ const point=designation.point;if(!point||!dbsReadyFor())return;
+ armPendingZoom('dbs','DBS 放大',point.worldX,point.worldZ);
+ return request('/dbs',{x:point.worldX,z:point.worldZ,span_m:512,sharpen:8}).then(ok=>{if(!ok)disarmPendingZoom();return ok;});
+}
+el('designateDetail').onclick=()=>designationCapture('detail');
+el('designateArea').onclick=()=>designationCapture('area');
+el('designateDbs').onclick=()=>designationDbs();
+// 加入清单沿用原来的目标点结构（世界坐标、经纬度、锚点序号），清单渲染与删除按钮都不变。
+function designationAddTarget(){
+ const point=designation.point;if(!point)return null;
+ const target={id:nextTargetId++,at:Date.now(),worldX:point.worldX,worldZ:point.worldZ,latitude:point.latitude,longitude:point.longitude,anchorSeq:point.anchorSeq};
+ targets.push(target);targetsSync(target);
+ return target;
+}
+el('addTarget').onclick=()=>designationAddTarget();
+// 清单用 innerHTML 一次渲染：页面上其余文字都走 textContent，只有这个列表需要按条生成按钮，
+// 插值全是页面自己算出的数字，没有外部文本。
+function targetsSync(announced){
+ el('clearTargets').disabled=!targets.length;
+ el('targetPointInfo').textContent=announced?`已加入目标清单：${targetPointText(announced)}`:(targets.length?`目标清单 ${targets.length} 个点：继续选取后按「加入目标清单」，删除用清单里的按钮。`:'尚未加入目标点：先在主视图或 ②③ 栏选取指定点，再按「加入目标清单」。');
+ el('targetList').innerHTML=targets.map(point=>`<li>${targetPointText(point)} <button type="button" data-target="${point.id}">删除</button></li>`).join('');
+ mosaicSchedule();
+}
+function targetsRemove(id){const index=targets.findIndex(point=>point.id===id);if(index>=0)targets.splice(index,1);targetsSync();}
+el('targetList').onclick=event=>{const node=event.target.closest?.('[data-target]')||event.target,id=Number(node&&node.dataset?node.dataset.target:NaN);if(Number.isSafeInteger(id))targetsRemove(id);};
+el('clearTargets').onclick=()=>{targets.length=0;targetsSync();};
+// 目标点画在主视图上：十字加序号，世界锚定，随平移缩放一起动。
+function targetsDraw(ctx,width,height,view){
+ for(const point of targets){
+  const at=mosaicWorldToScreen(view,width,height,point.worldX,point.worldZ);
+  if(at.x<-20||at.y<-20||at.x>width+20||at.y>height+20)continue;
+  ctx.save();ctx.strokeStyle='#ffd166';ctx.fillStyle='#ffd166';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();
+  ctx.moveTo(at.x-8,at.y);ctx.lineTo(at.x+8,at.y);ctx.moveTo(at.x,at.y-8);ctx.lineTo(at.x,at.y+8);ctx.stroke();
+  ctx.fillRect(at.x-2,at.y-2,4,4);ctx.font='12px system-ui';ctx.fillText(`T${point.id}`,at.x+10,at.y-10);ctx.restore();
+ }
+ return targets.length;
+}
+// 指定点画成圆圈加十字（青色，和清单里的黄色 T 记号分开）：它表示“当前这一发要打的点”，不是已记账的目标。
+function designationDraw(ctx,width,height,view){
+ const point=designation.point;if(!point)return 0;
+ const at=mosaicWorldToScreen(view,width,height,point.worldX,point.worldZ);
+ if(at.x<-20||at.y<-20||at.x>width+20||at.y>height+20)return 0;
+ ctx.save();ctx.strokeStyle='#5ad1ff';ctx.fillStyle='#5ad1ff';ctx.lineWidth=2;ctx.setLineDash([]);
+ ctx.beginPath();ctx.moveTo(at.x-11,at.y);ctx.lineTo(at.x+11,at.y);ctx.moveTo(at.x,at.y-11);ctx.lineTo(at.x,at.y+11);ctx.stroke();
+ ctx.beginPath();ctx.arc(at.x,at.y,6,0,2*Math.PI);ctx.stroke();
+ ctx.font='12px system-ui';ctx.fillText('指定',at.x+13,at.y-11);ctx.restore();
+ return 1;
+}
+// ---- GMTI 动目标符号 -----------------------------------------------------------------------
+// /state 的 movers 是任务桥上报的动目标（世界坐标、速度、航向、报告年龄），null 表示桥不可用。符号画在主视图：
+// 菱形 + 速度矢量短线 + 速度文字；ageS 超过 moverStaleS 就变淡并在文字里标“旧”。真实系统里 GMTI 是叠加层，
+// 只表示报告时刻的位置，与静止 SAR 图像内容不做配准——这里同样不做对齐、过滤或去重。
+const moverStaleS=3;
+function moversList(){return Array.isArray(mosaic.movers)?mosaic.movers:[];}
+function moverStyle(mover){return Number.isFinite(mover.ageS)&&mover.ageS>moverStaleS?{color:'#8a5148',stale:true}:{color:'#ff6b5a',stale:false};}
+function moversDraw(ctx,width,height,view){
+ let drawn=0;
+ for(const mover of moversList()){
+  if(!Number.isFinite(mover.x)||!Number.isFinite(mover.z))continue;
+  const at=mosaicWorldToScreen(view,width,height,mover.x,mover.z);
+  if(at.x<-20||at.y<-20||at.x>width+20||at.y>height+20)continue;
+  const style=moverStyle(mover),speed=Number.isFinite(mover.speed)?mover.speed:0,heading=(Number.isFinite(mover.headingDeg)?mover.headingDeg:0)*Math.PI/180;
+  ctx.save();ctx.strokeStyle=style.color;ctx.fillStyle=style.color;ctx.lineWidth=2;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(at.x,at.y-6);ctx.lineTo(at.x+6,at.y);ctx.lineTo(at.x,at.y+6);ctx.lineTo(at.x-6,at.y);ctx.closePath();ctx.stroke();
+  if(speed>0){const length=Math.min(26,4+speed*.25);ctx.beginPath();ctx.moveTo(at.x,at.y);ctx.lineTo(at.x+Math.sin(heading)*length,at.y+Math.cos(heading)*length);ctx.stroke();}
+  ctx.font='12px system-ui';ctx.fillText(speed>0?`${speed.toFixed(0)} m/s${style.stale?' · 旧':''}`:style.stale?'动目标 · 旧':'动目标',at.x+9,at.y-9);
+  ctx.restore();drawn++;
+ }
+ return drawn;
+}
+function mosaicMoverPick(x,y){
+ const canvas=el('mosaic');let best=null;
+ for(const mover of moversList()){
+  if(!Number.isFinite(mover.x)||!Number.isFinite(mover.z))continue;
+  const at=mosaicWorldToScreen(mosaic.view,canvas.width,canvas.height,mover.x,mover.z),distance=Math.hypot(at.x-x,at.y-y);
+  if(distance<=12&&(!best||distance<best.distance))best={mover,distance};
+ }
+ return best;
+}
+function mosaicMoverReadout(hit){
+ const mover=hit.mover,style=moverStyle(mover);
+ el('mosaicReadout').textContent=`动目标（GMTI）· 速度 ${Number.isFinite(mover.speed)?`${mover.speed.toFixed(1)} m/s`:'—'} · 航向 ${Number.isFinite(mover.headingDeg)?`${mover.headingDeg.toFixed(0)}°`:'—'} · 世界 x/z ${mover.x.toFixed(0)} / ${mover.z.toFixed(0)} m · 报告 ${Number.isFinite(mover.ageS)?`${mover.ageS.toFixed(1)} s 前`:'年龄未知'}${style.stale?' · 已过期，位置可能不再成立':''}。符号来自动目标报告，与 SAR 图像内容不做配准。`;
+}
+// 光标读数：动目标符号画在图像之上，优先命中它；否则回到图像元数据。
+function mosaicCursorReadout(){
+ if(!mosaic.cursor){mosaicReadout(null);return;}
+ const mover=mosaicMoverPick(mosaic.cursor.x,mosaic.cursor.y);
+ if(mover){mosaic.hover=null;mosaicMoverReadout(mover);return;}
+ mosaicReadout(mosaicPick(mosaic.cursor.x,mosaic.cursor.y));
+}
+function mosaicSchedule(){
+ if(!mosaic.entries.length&&!mosaic.own&&!sweep.plan.length&&!moversList().length&&!targets.length&&!designation.point){el('sweepInfo').textContent=sweepInfoText();return;}
+ mosaic.dirty=true;
+ if(typeof requestAnimationFrame!=='function'){mosaicDraw();return;}
+ if(!mosaic.frame)mosaic.frame=requestAnimationFrame(()=>{mosaic.frame=0;if(mosaic.dirty)mosaicDraw();});
+}
+function mosaicZoom(factor,x,y){
+ const canvas=el('mosaic');
+ if(!(mosaic.view.scale>0))mosaic.view.scale=mosaicDefaultScale(canvas.width,canvas.height);
+ const before=mosaicScreenToWorld(mosaic.view,canvas.width,canvas.height,x,y);
+ mosaic.view.scale=Math.max(.005,Math.min(40,mosaic.view.scale*factor));
+ const after=mosaicScreenToWorld(mosaic.view,canvas.width,canvas.height,x,y);
+ mosaic.view.x+=before.x-after.x;mosaic.view.z+=before.z-after.z;
+}
+function mosaicPointerTo(event){
+ const canvas=el('mosaic'),rect=(event.currentTarget||canvas).getBoundingClientRect();
+ return {x:((event.clientX-rect.left)/(rect.width||canvas.width))*canvas.width,y:((event.clientY-rect.top)/(rect.height||canvas.height))*canvas.height};
+}
+function mosaicReset(note){
+ mosaic.entries.length=0;mosaic.images.clear();mosaic.pending.clear();mosaic.hover=null;
+ mosaic.seq=null;mosaic.first=null;mosaic.latest=null;mosaic.dropped=0;mosaic.note=note;mosaic.dirty=true;
+}
+// 摘要合并。增量响应只含 seq>since 的条目，序号缺口（服务端已丢弃）直接跳过；序号或丢弃计数倒退、
+// 或服务端保留窗口整体越过本地缓存，视为服务重启或长时间断线，清空缓存，下一次轮询用完整 /state 重建。
+function mosaicApplyState(summary){
+ const entries=Array.isArray(summary.entries)?summary.entries:[];
+ const latest=Number.isSafeInteger(summary.latestSeq)?summary.latestSeq:null,first=Number.isSafeInteger(summary.firstSeq)?summary.firstSeq:null;
+ const newest=mosaic.entries.length?mosaic.entries[mosaic.entries.length-1].seq:null;
+ const restarted=latest!==null&&((mosaic.seq!==null&&latest<mosaic.seq)||(newest!==null&&first!==null&&first>newest+1)||(Number.isSafeInteger(summary.dropped)&&summary.dropped<mosaic.dropped));
+ if(restarted){mosaicReset(`服务端序号窗口已改变（本地 ${mosaic.seq===null?'—':'#'+mosaic.seq} → 服务端 #${latest}），重建本地缓存`);return true;}
+ const limit=Number.isSafeInteger(summary.limit)&&summary.limit>0?summary.limit:mosaic.limit;let added=0;const fresh=[];
+ for(const entry of entries){
+  if(!entry||!Number.isSafeInteger(entry.seq)||!Array.isArray(entry.center)||!Number.isFinite(entry.bearing)||!Number.isFinite(entry.size_m))continue;
+  if(mosaic.entries.some(known=>known.seq===entry.seq))continue;
+  mosaic.entries.push(entry);fresh.push(entry);added++;
+ }
+ if(added)mosaic.entries.sort((a,b)=>a.seq-b.seq);
+ mosaic.limit=limit;mosaic.first=first;mosaic.latest=latest;
+ if(Number.isSafeInteger(summary.dropped))mosaic.dropped=summary.dropped;
+ // 客户端也按上限丢弃最旧并释放矩阵，丢掉的图不再留在本地。
+ while(mosaic.entries.length>limit){const gone=mosaic.entries.shift();mosaic.images.delete(gone.seq);mosaic.pending.delete(gone.seq);if(mosaic.hover&&mosaic.hover.seq===gone.seq)mosaic.hover=null;}
+ for(const entry of mosaic.entries)if(!mosaic.images.has(entry.seq))mosaic.pending.add(entry.seq);
+ if(latest!==null)mosaic.seq=latest;
+ mosaic.note=added?`新到 ${added} 张，正在取回矩阵`:(mosaic.images.size?'等待新图':'等待第一张完成的图像');
+ if(added)mosaic.dirty=true;
+ // 只有“刚贴入的条目”才可能触发跳转：按钮点击留下的期望在这里兑现一次就被清掉。
+ if(fresh.length){const zoom=pendingZoomEntry(fresh);if(zoom)zoomToEntry(zoom);}
+ return false;
+}
+async function mosaicFetchPending(){
+ if(mosaic.fetching)return;
+ mosaic.fetching=true;
+ try{
+  while(mosaic.pending.size){
+   const seq=Math.min(...mosaic.pending);mosaic.pending.delete(seq);
+   const known=mosaic.entries.find(entry=>entry.seq===seq);if(!known)continue;
+   try{
+    const response=await fetch(`/image/${seq}`),image=response.ok?await response.json():null;
+    if(!image||!Number.isInteger(image.width)||image.width!==known.width||!Array.isArray(image.db)||image.db.length!==image.width*image.width)throw Error(response.ok?'矩阵与摘要不符':'服务端已不保留该图');
+    mosaic.images.set(seq,{width:image.width,db:image.db});mosaic.dirty=true;
+   }catch(e){
+    // 取不到就与摘要一起丢弃：服务端保留窗口已不含它，重试没有意义。
+    mosaic.entries=mosaic.entries.filter(entry=>entry.seq!==seq);mosaic.misses++;
+    mosaic.note=`#${seq} 未取回（${e.message}），已丢弃该摘要`;
+   }
+  }
+ }finally{mosaic.fetching=false;}
+}
+async function mosaicSync(summary,ownship){
+ if(!summary||typeof summary!=='object')return false;
+ const rebuilt=mosaicApplyState(summary);
+ const own=ownship&&Array.isArray(ownship.pos)&&ownship.pos.length===3?ownship:null;
+ if(JSON.stringify(own&&own.pos)!==JSON.stringify(mosaic.own&&mosaic.own.pos))mosaic.dirty=true;
+ mosaic.own=own;
+ if(!rebuilt)await mosaicFetchPending();
+ if(mosaic.dirty)mosaicDraw();else mosaicStatus();
+ return true;
+}
+el('mosaicFollow').onchange=()=>{mosaic.follow=el('mosaicFollow').checked;mosaicSchedule();};
+el('mosaicFade').onchange=()=>{mosaic.fade=el('mosaicFade').checked;mosaicSchedule();};
+el('mosaicPlan').onchange=()=>{sweep.visible=el('mosaicPlan').checked;mosaicSchedule();};
+el('mosaicSector').onchange=()=>{mosaic.outline=el('mosaicSector').checked;mosaicStatus();mosaicSchedule();};
+el('mosaicSar').onchange=()=>{mosaic.sarWindow=el('mosaicSar').checked;mosaicStatus();mosaicSchedule();};
+el('mosaicFit').onclick=()=>{
+ const canvas=el('mosaic'),fit=mosaicFitView(canvas.width,canvas.height);if(!fit)return;
+ mosaic.view=fit;mosaic.follow=false;el('mosaicFollow').checked=false;mosaicSchedule();
+};
+// 单击=选取指定点，拖动=平移：按下时记下屏幕起点，抬起时按屏幕位移区分（位移阈值用客户端像素，
+// 与画布尺寸解耦）。pointercancel 只结束拖动，不产生指定点。
+const mosaicClickSlop=5;
+el('mosaic').onpointerdown=event=>{
+ const point=mosaicPointerTo(event);mosaic.drag={x:point.x,y:point.y,id:event.pointerId,moved:0,screenX:event.clientX,screenY:event.clientY};
+ el('mosaic').setPointerCapture?.(event.pointerId);if(event.preventDefault)event.preventDefault();
+};
+el('mosaic').onpointermove=event=>{
+ const point=mosaicPointerTo(event);
+ if(mosaic.drag&&mosaic.drag.id===event.pointerId){
+  if(!(mosaic.view.scale>0))return;
+  const dx=(point.x-mosaic.drag.x)/mosaic.view.scale,dz=(point.y-mosaic.drag.y)/mosaic.view.scale;
+  if(Number.isFinite(event.clientX)&&Number.isFinite(event.clientY))mosaic.drag.moved=Math.max(mosaic.drag.moved,Math.hypot(event.clientX-mosaic.drag.screenX,event.clientY-mosaic.drag.screenY));
+  mosaic.drag.x=point.x;mosaic.drag.y=point.y;
+  if(dx||dz){mosaic.view.x-=dx;mosaic.view.z-=dz;mosaic.follow=false;el('mosaicFollow').checked=false;mosaicSchedule();}
+  return;
+ }
+ mosaic.cursor=point;mosaicCursorReadout();
+};
+el('mosaic').onpointerup=event=>{
+ const drag=mosaic.drag;mosaic.drag=null;
+ if(!drag||drag.id!==event.pointerId)return;
+ if(drag.moved<=mosaicClickSlop)designateScreenPoint(drag.x,drag.y,'主视图');
+};
+el('mosaic').onpointercancel=()=>{mosaic.drag=null;};
+el('mosaic').onpointerleave=()=>{if(!mosaic.drag){mosaic.cursor=null;mosaicReadout(null);}};
+el('mosaic').onwheel=event=>{const point=mosaicPointerTo(event);mosaicZoom(event.deltaY<0?1.2:1/1.2,point.x,point.y);mosaicSchedule();if(event.preventDefault)event.preventDefault();};
+// ---- 模式预设 -------------------------------------------------------------------------
+// 预设只做一次批量设置：写它声明的字段，不锁定控件，之后每项都能单独改。下拉框显示的值由各控件
+// 当前值反推，因此不会与页面上的设置不一致（对不上任何预设时显示「自定义」）。参数依据：
+//  · quality=fast：出图优先档（散射单元加倍、脉冲过采样 2.5→1.5）。广域扫掠要的是覆盖面，不是分辨率；
+//  · focuser=pfa：频域聚焦，本机实测比反投影快约 8 倍，512 m 切片内的平面波近似误差可接受；
+//  · window=hann：压低旁瓣，避免强目标把相邻格子压暗；
+//  · sceneModel=classified：分类地表 + 包围盒对象 + 局部遮挡，比 uniform 更接近实际回波；
+//  · footprint=area（512 m）：服务端扫掠格固定用 512 m（sar_live.cjs 的 SWEEP_FOOTPRINT），
+//    也是 20 km 上仍能分辨十几米地物的最小切片；128 m 切片在这个距离只剩几个分辨单元；
+//  · continuousMode=sweep：按服务端计划格逐格覆盖，而不是在同一处重复拍；
+//  · side=0：服务端 /continuous/start 接受 -1/0/1，0 = 每次采集左右交替（见 sar_live.cjs 的注释）；
+//  · 多视 2×2：4 视把散斑方差压到约 1/4，同时保留 256 m 级细节（512 m 图 → 65×65 块）。
+// 局部精看用 1×1 单视：精看要的是原始分辨率，不做块平均，所以多视勾选框一并关掉。
+const presets={
+ wide:{label:'广域快扫（推荐默认）',values:{quality:'fast',window:'hann',focuser:'pfa',sceneModel:'classified',footprint:'area',continuousMode:'sweep',side:'0',multiLook:true,looks:'2'}},
+ observe:{label:'精细观察',values:{quality:'standard',focuser:'pfa',footprint:'area',continuousMode:'relative',multiLook:true,looks:'2'}},
+ inspect:{label:'局部精看',values:{quality:'fine',footprint:'detail',multiLook:false,looks:'1'}}
+};
+const presetWords={quality:{standard:'标准档',fine:'精细档',fast:'快速档'},window:{hann:'Hann 窗',rect:'矩形窗'},
+ focuser:{backprojection:'反投影',pfa:'PFA'},sceneModel:{classified:'分类散射',uniform:'统一地表'},
+ footprint:{detail:'128 m 局部',area:'512 m 区域',airport:'2048 m 概览'},continuousMode:{relative:'相对单点',sweep:'广域扫掠'},
+ side:{'1':'右侧 45°','-1':'左侧 45°','0':'左右交替'},looks:{'1':'1×1 单视','2':'2×2 四视','3':'3×3 九视'},
+ multiLook:{true:'多视降斑开',false:'多视降斑关'}};
+function presetWord(id,value){return presetWords[id]?.[String(value)]||String(value);}
+function presetMatches(name){
+ for(const [id,value] of Object.entries(presets[name].values)){
+  const node=el(id);if(!node)return false;
+  if(typeof value==='boolean'){if(!!node.checked!==value)return false;}
+  else if(node.value!==value)return false;
+ }
+ return true;
+}
+function presetApplied(){for(const name of Object.keys(presets))if(presetMatches(name))return name;return 'custom';}
+function presetText(name){
+ if(!presets[name])return '当前为逐项设置：选一个预设可以一次设置好常用参数，选择会被记住；预设不锁定，之后仍可单独调整。';
+ const parts=Object.entries(presets[name].values).map(([id,value])=>presetWord(id,value));
+ return `已应用「${presets[name].label}」：${parts.join(' · ')}。预设只设置这些项，不锁定，可继续单独调整。`;
+}
+function presetSync(){
+ const name=presetApplied(),select=el('preset');
+ if(select&&select.value!==name)select.value=name;
+ const info=el('presetInfo');if(info)info.textContent=presetText(name);
+}
+function presetApply(name){
+ const preset=presets[name];if(!preset)return false;
+ for(const [id,value] of Object.entries(preset.values)){
+  const node=el(id);if(!node)continue;
+  if(typeof value==='boolean')node.checked=value;else node.value=value;
+ }
+ if(lastImage)draw();  // 多视/视数变了要重画当前这帧
+ mosaicSchedule();
+ modeSync();  // 预设可能连着改了「连续模式」：MAP 用不到的四项按新模式重新禁用/启用
+ return true;
+}
+// ---- 控件记忆（localStorage） ----------------------------------------------------------
+// 存的是控件选择：下拉、勾选框、地距。经纬度不记——那是当前任务的目标，换任务就失效。
+// 加载时先恢复这里，再开始轮询；服务端正在跑的连续采集仍然覆盖页面上的值（运行中的状态才是真值），
+// 未运行时图像元数据的回填只填用户没存过的字段。存储不可用（隐私模式、配额）或内容损坏时全部按
+// 页面默认走；页面改版后已消失的选项、越界的数值也回退到页面默认，不写进控件。
+const prefsKey='sar-viewer/controls/1';
+const prefsValues=['continuousMode','footprint','sceneModel','side','range','quality','focuser','window','displayRange','looks','referenceView'];
+const prefsChecks=['recordContinuous','multiLook','mosaicFollow','mosaicFade','mosaicPlan','mosaicSector','mosaicSar'];
+let prefsText='';
+const prefs=(()=>{try{const raw=JSON.parse(globalThis.localStorage?.getItem(prefsKey)||'{}');return raw&&typeof raw==='object'?raw:{};}catch(e){return {};}})();
+function prefsHas(id){return Object.prototype.hasOwnProperty.call(prefs,id);}
+function prefsControl(id,value){
+ const node=el(id);if(!node||typeof value!=='string')return false;
+ if(id==='range'){const km=Number(value);if(!(km>=1&&km<=50))return false;node.value=value;return true;}
+ const options=node.options;
+ if(options&&!Array.from(options).some(option=>option.value===value))return false;
+ node.value=value;return true;
+}
+function prefsRestore(){
+ for(const id of prefsValues)if(prefsHas(id))prefsControl(id,prefs[id]);
+ for(const id of prefsChecks)if(typeof prefs[id]==='boolean')el(id).checked=prefs[id];
+ // 拼接视图的五个开关也决定内部状态，同样只在真的恢复过存储值时才同步
+ if(typeof prefs.mosaicFollow==='boolean')mosaic.follow=!!el('mosaicFollow').checked;
+ if(typeof prefs.mosaicFade==='boolean')mosaic.fade=!!el('mosaicFade').checked;
+ if(typeof prefs.mosaicPlan==='boolean')sweep.visible=!!el('mosaicPlan').checked;
+ if(typeof prefs.mosaicSector==='boolean')mosaic.outline=!!el('mosaicSector').checked;
+ if(typeof prefs.mosaicSar==='boolean')mosaic.sarWindow=!!el('mosaicSar').checked;
+}
+function prefsSave(){
+ for(const id of prefsValues){const node=el(id);if(node)prefs[id]=node.value;}
+ for(const id of prefsChecks){const node=el(id);if(node)prefs[id]=!!node.checked;}
+ const text=JSON.stringify(prefs);
+ if(text===prefsText)return;  // 每次 /state 轮询都会调到这里：值没变就不写盘
+ prefsText=text;
+ try{globalThis.localStorage?.setItem(prefsKey,text);}catch(e){}
+}
+function prefsWatch(){
+ for(const id of [...prefsValues,...prefsChecks]){
+  const node=el(id),previous=node.onchange;
+  node.onchange=event=>{
+   if(typeof previous==='function')previous.call(node,event);
+   presetSync();  // 逐项改过之后，下拉框回到「自定义」，或仍与某个预设一致
+   prefsSave();
+  };
+ }
+}
+// 恢复的「连续模式」也要立刻决定 MAP 用不到的四项是否可用，不能等到第一次轮询；冻结按钮同理先写上标签。
+prefsRestore();presetSync();prefsWatch();modeSync();freezeSync();
+el('preset').onchange=()=>{presetApply(el('preset').value);presetSync();prefsSave();};
+async function poll(){try{
+ const r=await fetch(mosaic.seq===null?'/state':`/state?since=${mosaic.seq}`);if(!r.ok)throw Error('接收端请求失败');const s=await r.json();
+ el('mode').textContent=s.mode==='demo'?'合成数据演示：没有连接 DCS':s.mode==='replay'?'录制回放：当前图像来自文件，不是当前任务':'DCS 实时采集验证';
+ pageStatus=s.phase+(s.progress?' · '+s.progress:'')+(s.mode==='live'&&!s.connected?' · Export 未连接':'');statusSync();
+ el('capture').disabled=!s.canCapture||busy;el('captureGeo').disabled=!s.canCapture||!s.status?.geo_available||busy;el('reprocess').disabled=!s.canReprocess||busy;if(s.error)el('error').textContent=s.error;
+ const running=!!s.continuous?.enabled;
+ sweepApplyState(s.continuous);
+ map.payload=s.map&&typeof s.map==='object'?s.map:null;  // 主视图状态行与连续状态行的 MAP 段都用；底图帧本身走 mosaic 通道
+ // 扇形轮廓跟着 /state.map 的锚点与口径走：变了就重画主视图，不必等下一次本机位姿刷新。
+ if(sectorSync())mosaic.dirty=true;
+ const runningMap=running&&sweep.mode==='map';
+ // 可成像性判定的按钮门控只认 /state 的 canCapture（服务端在 MAP 巡逻空闲时为 true，SAR 忙或别的模式为 false）：
+ // 页面再自己判断几何就成了第二套真值，只会与 /designate/check 的结论打架。DBS 另有 canDbs（服务端不忙即可发）。
+ captureReady=!!s.canCapture;dbsReady=!!s.canDbs;dbsKnown=Object.prototype.hasOwnProperty.call(s,'canDbs')||!!s.dbs;dbs.payload=s.dbs&&typeof s.dbs==='object'?s.dbs:null;designationSync();
+ el('radarStatus').textContent=radarStatusText(running);
+ const caps=s.sceneCapabilities;imageWindowSync(caps,s.imageWindow);el('capabilities').textContent=`Export：${s.exportCapabilities?.version===2?'新版已连接':'尚未确认新版'} / ${s.exportCapabilities?.surface||'分类未确认'} · 任务桥接：${caps?.provider||'未连接'} / ${caps?.surface||'无地表分类'} / ${caps?.objects||'无对象接口'}${caps?.error?' · '+caps.error:''}。任务桥接不可用时保留 Export 数据；不会自动开放脚本权限。`;
+ // MAP 运行时的 quality/footprint/window/focuser 是 mosaic 条目的占位值（map / real-beam），不是下拉框里的取值，
+ // side/range 也不是扇形的量（没有侧向，半径 ≠ 地距）：写进去只会清空控件并污染记忆，所以运行 MAP 时一项都不回填。
+ if(running){if(!runningMap&&[-1,1].includes(s.continuous.side))el('side').value=String(s.continuous.side);if(!runningMap&&Number.isFinite(s.continuous.range))el('range').value=String(s.continuous.range/1000);el('recordContinuous').checked=s.continuous.record;if(!runningMap){el('quality').value=s.continuous.quality||'standard';if(s.continuous.window)el('window').value=s.continuous.window;if(s.continuous.focuser)el('focuser').value=s.continuous.focuser;}if(sweep.modeKnown)el('continuousMode').value=sweep.mode;}
+ el('radarStart').disabled=!s.canStartContinuous||busy;el('radarStop').disabled=!running||busy;
+ el('continuousStart').disabled=!s.canStartContinuous||busy;el('continuousStop').disabled=!running||busy;
+ if(running&&!runningMap){el('footprint').value=s.continuous.footprint||'detail';el('sceneModel').value=s.continuous.sceneModel||'uniform';}
+ for(const id of ['side','range','window','quality','focuser','recordContinuous','footprint','sceneModel','continuousMode','preset'])el(id).disabled=running||busy; // 预设写的正是这些项，运行中一并锁住，显示的值才与实际采集一致
+ modeSync(running); // 未运行时按「连续模式」的选择禁用 MAP 用不到的六项；运行中只由上面的锁生效
+ el('continuousStatus').textContent=s.continuous?continuousStatusText(s.continuous,running):'连续采集未启动';
+ el('geoStatus').textContent=s.mode!=='live'?'回放/演示模式，无法选择当前任务目标':!s.connected?'等待 Export 连接后确认坐标接口':s.status?.geo_available?'经纬度转换接口可用':'坐标接口尚未确认；更新 Export 后重新进入任务';
+ if(s.target){const a=s.target.relative_track_deg;el('target').textContent=`本次已确认中心：纬度 ${s.target.latitude.toFixed(6)}°，经度 ${s.target.longitude.toFixed(6)}° · 启动地距 ${(s.target.ground_range_m/1000).toFixed(2)} km · 相对地面航迹 ${a.toFixed(1)}°（正右/负左）${Math.abs(a)<imageWindow.minAngleDeg||Math.abs(a)>imageWindow.maxAngleDeg?' · 接近航迹前/后方，请调整航迹以增加侧向孔径':''}。地表与对象是否取得，以本张输入说明为准。`;}else el('target').textContent='尚无已确认的扫描中心';
+ el('targetSummary').textContent=s.target?el('target').textContent:'当前图像的地图经纬度尚未确认；输入覆盖以本张地表说明为准';
+ if(s.status){const age=(Date.now()-s.status.received)/1000;el('probe').textContent=JSON.stringify(s.status,null,2)+`\n探测距今 ${age.toFixed(1)} s`;}else el('probe').textContent='尚无当前任务接口探测结果';
+ // 冻结：②③ 不跟随新结果（主视图照常收），只记下服务端已经完成的新图，解冻后下一轮自动显示。
+ if(!s.result){if(!freeze.on){el('image').getContext('2d').clearRect(0,0,el('image').width,el('image').height);el('heightImage').getContext('2d').clearRect(0,0,el('heightImage').width,el('heightImage').height);clearCursor();el('mapCenter').textContent='尚无已成像的扫描中心';el('copyCenter').disabled=true;el('heightScale').textContent='等待与 SAR 图对应的高程数据';el('inputInfo').textContent='等待本次配对输入';el('sarRegion').textContent='等待成像';el('meta').textContent='';el('stamp').textContent='尚未生成本次图像';completed=null;lastImage=null;lastReference=null;lastTarget=null;}}
+ else if(completed!==s.completed){
+  if(freeze.on){if(freeze.pending!==s.completed){freeze.pending=s.completed;freezeSync();}}
+  else{completed=s.completed;lastImage=s.result;lastTarget=s.target;
+  // ②栏的高程/地表栅格不在 700 ms 的轮询里（D3）：/state 只回描述（center/bearing/size/n 与长度），
+  // 每完成一张图按 completed 拉一次 /reference。拉不到时 lastReference 保持 null，drawReference()
+  // 会明确说“本张缺少配对输入”，不会拿上一张顶替。
+  lastReference=s.reference?.completed===s.completed?s.reference:null;
+  if(s.reference){const pending=referenceFetch(s.reference);if(pending)await pending;}
+  draw();drawReference();const width=s.result.width;
+  if(!running){
+   // 图像元数据只是回填默认值：用户存过的选择优先，不被新到的图像覆盖。
+   if(!prefsHas('window'))el('window').value=s.result.metadata.window||'rect';
+   if(!prefsHas('quality'))el('quality').value=s.result.metadata.quality||(width===257?'fine':'standard');
+   if(!prefsHas('focuser'))el('focuser').value=s.result.metadata.focuser||'backprojection';
+  }
+  const profile=s.result.metadata.quality==='fast'?` · 快速测试档：散射单元 ${s.result.metadata.scatter_spacing_m} m、过采样 ×${s.result.metadata.pulse_oversampling}（降低过采样，可能混叠）`:'';
+  const focusMark=s.result.metadata.focuser==='pfa'?' · 聚焦 PFA（频域，平面波近似）':'';
+  el('stamp').textContent=`成像时间 ${new Date(s.completed).toLocaleString()} · 来源 ${s.result.source} · 输出间隔 ${s.result.size_m/(width-1)} m（地形间隔仍为 ${s.reference?s.reference.size/(s.reference.n-1):s.result.metadata.terrain_spacing_m||8} m） · ${s.record?'原始采集文件 '+s.record:'未新录制'}${focusMark}${profile}${s.restoredDisplay?` · 已恢复历史图像，${s.restoredInput?'对应原始输入已恢复':'原始输入未恢复'}`:''}`;el('meta').textContent=JSON.stringify(s.result.metadata,null,2);}
+ }
+ // GMTI 动目标：null=桥不可用，数组=本批报告（含报告年龄）。只在真的变了才重画。
+ const movers=Array.isArray(s.movers)?s.movers:null;
+ if(JSON.stringify(movers)!==JSON.stringify(mosaic.movers)){mosaic.movers=movers;mosaic.dirty=true;}
+ mosaic.moversKnown=Object.prototype.hasOwnProperty.call(s,'movers');
+ mosaic.moversNote=typeof s.moversNote==='string'&&s.moversNote?s.moversNote:null;
+ // 跳转描边与提示行只活几秒：到点先清掉再同步这一帧，描边才会在同一轮被擦掉，不必等下一次碰巧的 dirty。
+ if(zoomFlash.seq!==null&&Date.now()>=zoomFlash.until)clearZoomFlash();
+ if(s.mosaic)await mosaicSync(s.mosaic,s.ownship);else if(mosaic.dirty)mosaicSchedule();
+ presetSync();prefsSave(); // 下拉框按本轮同步后的实际值反推；页面上的选择（含服务端运行中写入的）都会记住
+}catch(e){captureReady=false;dbsReady=false;dbs.payload=null;el('designateDetail').disabled=el('designateArea').disabled=el('designateDbs').disabled=el('addTarget').disabled=el('radarStart').disabled=el('radarStop').disabled=el('capture').disabled=el('captureGeo').disabled=el('reprocess').disabled=el('continuousStart').disabled=el('continuousStop').disabled=true;designationSync();pageStatus='页面与接收端失去连接；显示的图像可能已过期';statusSync();el('error').textContent=e.message;}setTimeout(poll,700);}poll();
+</script></html>

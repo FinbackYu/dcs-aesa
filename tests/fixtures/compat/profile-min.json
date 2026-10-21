@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "id": "dcs-1.2.3.4",
+  "build": "1.2.3.4",
+  "variant": "MT",
+  "verified": "2026-10-18",
+  "required": ["BUILD", "EXP-SELF", "TER-GH"],
+  "capabilities": {
+    "BUILD": "ok",
+    "EXP-SELF": "ok",
+    "TER-GH": "ok"
+  }
+}

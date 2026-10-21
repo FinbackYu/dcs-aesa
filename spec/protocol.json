@@ -1,0 +1,566 @@
+{
+  "schema": 1,
+  "owner": "protocol",
+  "host": "127.0.0.1",
+  "ports": {
+    "aa_export": 3590,
+    "aa_http": 3591,
+    "sar_tcp": 3592,
+    "sar_http": 3593,
+    "sar_scene": 3594
+  },
+  "versions": {
+    "aa": "V1",
+    "sar": "SAR1",
+    "sar_caps": 2,
+    "scene": "SARSCENE1",
+    "scene_caps": 1,
+    "aa_proto": "2"
+  },
+  "aa": {
+    "sample_rate_hz": 10,
+    "line_ending": "\n",
+    "coalition_values": [
+      0,
+      1,
+      2
+    ],
+    "vel_valid_values": [
+      0,
+      1
+    ],
+    "rows": {
+      "V1": {
+        "fields": 1
+      },
+      "PROTO": {
+        "fields": 2,
+        "tokens": [
+          "PROTO",
+          "2"
+        ],
+        "note": "A/A 坐标/姿态声明：原始 DCS 值（x 北、y 上、z 东；Heading 从北顺时针）。缺失时按 V1 旧约定解释"
+      },
+      "COMPAT": {
+        "fields": 3
+      },
+      "P": {
+        "min_fields": 2,
+        "note": "首帧字段名探针；P 后可带任意探针文本"
+      },
+      "A": {
+        "fields": 10,
+        "legacy_fields": [
+          9
+        ]
+      },
+      "O": {
+        "fields": 5
+      },
+      "T": {
+        "fields": 12,
+        "legacy_fields": [
+          11
+        ]
+      },
+      "L": {
+        "fields": 4
+      },
+      "E": {
+        "fields": [
+          7,
+          10
+        ]
+      }
+    }
+  },
+  "sar": {
+    "status_rate_hz": 1,
+    "pose_rate_hz": 60,
+    "default_size_m": 128,
+    "default_n": 17,
+    "duration_s": 2.0,
+    "default_footprint": "detail",
+    "capture": {
+      "min_range_m": 1000,
+      "max_range_m": 50000,
+      "side_values": [
+        -1,
+        1
+      ],
+      "size_n_pairs": [
+        [
+          128,
+          17
+        ],
+        [
+          512,
+          33
+        ],
+        [
+          2048,
+          65
+        ]
+      ]
+    },
+    "image_window": {
+      "min_angle_deg": 20,
+      "max_angle_deg": 160
+    },
+    "map": {
+      "cells_max": {
+        "$ref": "sar.json#/map/collection/cells_max"
+      },
+      "rows_max": {
+        "$ref": "sar.json#/map/collection/rows_max"
+      },
+      "step_min_m": {
+        "$ref": "sar.json#/map/collection/step_min_m"
+      },
+      "step_max_m": {
+        "$ref": "sar.json#/map/collection/step_max_m"
+      },
+      "pose_interval_s": {
+        "$ref": "sar.json#/map/collection/pose_interval_s"
+      },
+      "job_timeout_ms": {
+        "$ref": "sar.json#/map/limits/job_timeout_ms"
+      },
+      "surface_token_max_chars": {
+        "$ref": "#/limits/map_surface_max_chars"
+      },
+      "surface_parts_max": 16,
+      "grid_layout": {
+        "$ref": "sar.json#/map/engine_defaults/grid_layout"
+      }
+    },
+    "rows": {
+      "HELLO": {
+        "fields": 2,
+        "tokens": [
+          "HELLO",
+          "SAR1"
+        ]
+      },
+      "CAPS": {
+        "fields": [
+          3,
+          4
+        ]
+      },
+      "COMPAT": {
+        "fields": 3
+      },
+      "STATUS": {
+        "fields": [
+          6,
+          7
+        ]
+      },
+      "BEGIN": {
+        "fields": 7
+      },
+      "TARGET": {
+        "fields": 6
+      },
+      "HEIGHT": {
+        "fields": 6
+      },
+      "SURFACE": {
+        "fields": 4
+      },
+      "POSE": {
+        "fields": 6
+      },
+      "END": {
+        "fields": 4
+      },
+      "FAIL": {
+        "fields": [
+          3,
+          4
+        ]
+      },
+      "MAPBEGIN": {
+        "fields": 7
+      },
+      "MAPGRID": {
+        "fields": 3
+      },
+      "MAPHEIGHT": {
+        "fields": 7
+      },
+      "MAPSURFACE": {
+        "fields": 5
+      },
+      "MAPPOSE": {
+        "fields": 9
+      },
+      "MAPEND": {
+        "fields": 4
+      }
+    },
+    "commands": {
+      "CAPTURE": {
+        "fields": [
+          4,
+          6
+        ]
+      },
+      "CAPTURE_GEO": {
+        "fields": [
+          4,
+          6
+        ]
+      },
+      "CAPTURE_WORLD": {
+        "fields": [
+          4,
+          6
+        ]
+      },
+      "CAPTURE_MAP": {
+        "fields": 7
+      },
+      "CAPTURE_MAP_AT": {
+        "fields": 7
+      },
+      "CANCEL": {
+        "fields": 1
+      },
+      "SURFACE_FINE": {
+        "fields": 1
+      }
+    }
+  },
+  "scene": {
+    "object_max": {
+      "$ref": "sar.json#/scene/max_objects"
+    },
+    "object_visit_max": {
+      "$ref": "sar.json#/scene/object_visit_max"
+    },
+    "mover_max": {
+      "$ref": "sar.json#/map/mover/max"
+    },
+    "mover_radius_max_m": {
+      "$ref": "sar.json#/map/mover/radius_max_m"
+    },
+    "mover_visit_max": {
+      "$ref": "sar.json#/map/mover/mission_visit_max"
+    },
+    "mover_lines_per_step": {
+      "$ref": "sar.json#/map/mover/mission_lines_per_step"
+    },
+    "mover_search_s": {
+      "$ref": "sar.json#/map/mover/mission_search_s"
+    },
+    "mover_min_speed_mps": {
+      "$ref": "sar.json#/map/mover/mission_min_speed_mps"
+    },
+    "mover_timeout_ms": {
+      "$ref": "sar.json#/map/mover/bridge_timeout_ms"
+    },
+    "rows": {
+      "HELLO": {
+        "fields": 2,
+        "tokens": [
+          "HELLO",
+          "SARSCENE1"
+        ]
+      },
+      "CAP": {
+        "fields": [
+          4,
+          5
+        ]
+      },
+      "COMPAT": {
+        "fields": 3
+      },
+      "SURFACE": {
+        "fields": 4
+      },
+      "OBJECT": {
+        "fields": 22
+      },
+      "SCENE_END": {
+        "fields": 6
+      },
+      "MOVER": {
+        "fields": 10
+      },
+      "MOVER_END": {
+        "fields": 6
+      },
+      "MOVER_FAIL": {
+        "fields": 3
+      },
+      "FAIL": {
+        "fields": [
+          3,
+          4
+        ]
+      },
+      "BRIDGE_ERROR": {
+        "fields": 1
+      }
+    },
+    "commands": {
+      "SCENE": {
+        "fields": 7
+      },
+      "MOVER": {
+        "fields": 5
+      },
+      "CANCEL": {
+        "fields": 1
+      },
+      "MOVER_CANCEL": {
+        "fields": 1
+      }
+    }
+  },
+  "limits": {
+    "aa_line_max_chars": null,
+    "aa_recv_buffer_bytes": null,
+    "sar_command_max_chars": 160,
+    "sar_server_line_max_chars": 512,
+    "recv_buffer_bytes": 65536,
+    "sar_export_pending_max_bytes": 65536,
+    "scene_line_max_chars": 2048,
+    "scene_recv_buffer_bytes": 65536,
+    "scene_pending_max_bytes": 65536,
+    "scene_partial_fragment_max_chars": 256,
+    "map_surface_max_chars": 96
+  },
+  "timeouts": {
+    "aa_reconnect_s": 2.0,
+    "aa_socket_s": 30,
+    "aa_sse_retry_ms": 2000,
+    "sar_export_reconnect_s": 2.0,
+    "sar_status_stale_ms": 3000,
+    "sar_capture_timeout_ms": 30000,
+    "sar_map_job_timeout_ms": {
+      "$ref": "sar.json#/map/limits/job_timeout_ms"
+    },
+    "sar_map_retry_backoff_ms": 2000,
+    "scene_response_timeout_ms": 8000,
+    "scene_reconnect_s": 2.0,
+    "scene_reprobe_s": 5.0,
+    "mover_response_timeout_ms": {
+      "$ref": "sar.json#/map/mover/bridge_timeout_ms"
+    }
+  },
+  "mosaic": {
+    "limit": {
+      "$ref": "display.json#/mosaic/limit"
+    },
+    "poll_ms": {
+      "$ref": "display.json#/mosaic/poll_ms"
+    },
+    "db_step": {
+      "$ref": "display.json#/db/step"
+    },
+    "no_data": {
+      "$ref": "display.json#/db/no_data"
+    }
+  },
+  "db": {
+    "step": {
+      "$ref": "display.json#/db/step"
+    },
+    "no_data": {
+      "$ref": "display.json#/db/no_data"
+    },
+    "clamp_min": {
+      "$ref": "display.json#/db/clamp_min"
+    },
+    "clamp_max": {
+      "$ref": "display.json#/db/clamp_max"
+    }
+  },
+  "sources": {
+    "host": {
+      "file": "src/export/aesa_export.lua",
+      "line": 18,
+      "class": "setting",
+      "note": "所有监听仅限 127.0.0.1"
+    },
+    "ports": {
+      "file": "src/export/aesa_export.lua",
+      "line": 17,
+      "class": "setting",
+      "note": "3590/3592/3593/3594 分别见 aesa_export、aesa_sar_export、sar_live、scene hook；3591 见 live.py"
+    },
+    "versions.aa": {
+      "file": "src/export/aesa_export.lua",
+      "line": 237,
+      "class": "setting",
+      "note": "A/A 连接握手行 V1；PROTO,2 单独声明坐标/姿态约定"
+    },
+    "versions.sar": {
+      "file": "src/export/sar_protocol.lua",
+      "line": 17,
+      "class": "setting",
+      "note": "SAR 通道/协议名 SAR1"
+    },
+    "versions.sar_caps": {
+      "file": "src/export/sar_protocol.lua",
+      "line": 17,
+      "class": "setting",
+      "note": "CAPS 能力版本 2"
+    },
+    "versions.scene": {
+      "file": "src/hooks/aesa_sar_scene_hook.lua",
+      "line": 60,
+      "class": "setting",
+      "note": "场景桥握手 SARSCENE1"
+    },
+    "versions.scene_caps": {
+      "file": "src/scene/sar_scene_core.lua",
+      "line": 10,
+      "class": "setting",
+      "note": "任务采样器版本号 1"
+    },
+    "aa": {
+      "file": "src/export/aesa_export.lua",
+      "line": 9,
+      "class": "setting",
+      "note": "RATE_HZ=10、RETRY_S=2；行字段见 AESA.sample 与 tools/receiver.py parse_line"
+    },
+    "aa.socket_timeout_s": {
+      "file": "tools/receiver.py",
+      "line": 40,
+      "class": "setting",
+      "note": "live.py:299 同为 30 s"
+    },
+    "sar": {
+      "file": "src/export/sar_protocol.lua",
+      "line": 13,
+      "class": "setting",
+      "note": "N=17、SIZE=128、DURATION=2；STATUS 1 Hz、POSE 60 Hz、MAPPOSE 0.25 s"
+    },
+    "sar.capture": {
+      "file": "src/export/sar_protocol.lua",
+      "line": 41,
+      "class": "setting",
+      "note": "侧视 1-50 km；size/n 组合见 allowed() 行 23"
+    },
+    "sar.image_window": {
+      "file": "tools/sar_service/arbiter.cjs",
+      "line": 18,
+      "class": "setting",
+      "note": "可成像侧视窗 20-160°（绝对值，正右负左）"
+    },
+    "sar.map": {
+      "file": "src/export/sar_protocol.lua",
+      "line": 14,
+      "class": "setting",
+      "note": "MAP_CELLS/MAP_ROWS/MAP_STEP/MAP_POSE；服务端上限见 protocol.map 生成物"
+    },
+    "sar.rows": {
+      "file": "tools/sar_service/collector.cjs",
+      "line": 99,
+      "class": "setting",
+      "note": "Collector 对每行字段数的严格校验"
+    },
+    "sar.commands": {
+      "file": "src/export/sar_collector.lua",
+      "line": 32,
+      "class": "setting",
+      "note": "服务端命令字段数：CAPTURE/GEO/WORLD 4 或 6、MAP 7、CANCEL/SURFACE_FINE 1"
+    },
+    "scene": {
+      "file": "src/scene/sar_scene_core.lua",
+      "line": 29,
+      "class": "setting",
+      "note": "MOVER 半径/访问/上限；17 个 SURFACE/帧、16 个 MOVER/步"
+    },
+    "scene.rows": {
+      "file": "tools/sar_bridge.cjs",
+      "line": 49,
+      "class": "setting",
+      "note": "桥对 CAP/SURFACE/OBJECT/SCENE_END/MOVER/MOVER_END 的字段校验"
+    },
+    "scene.commands": {
+      "file": "src/hooks/aesa_sar_scene_hook.lua",
+      "line": 65,
+      "class": "setting",
+      "note": "场景桥命令字段数：SCENE 7、MOVER 5、CANCEL/MOVER_CANCEL 1"
+    },
+    "limits": {
+      "file": "src/export/sar_collector.lua",
+      "line": 33,
+      "class": "setting",
+      "note": "命令行 160；服务端单行 512、缓冲 65536；场景行 2048、缓冲 65536"
+    },
+    "limits.aa_line_max_chars": {
+      "file": "tools/protocol.py",
+      "line": 99,
+      "class": "code_default",
+      "note": "A/A 解析器没有显式单行上限；null 表示不发明上限"
+    },
+    "limits.aa_recv_buffer_bytes": {
+      "file": "tools/protocol.py",
+      "line": 88,
+      "class": "code_default",
+      "note": "A/A 未设置接收缓冲上限"
+    },
+    "timeouts": {
+      "file": "tools/sar_service/service.cjs",
+      "line": 382,
+      "class": "setting",
+      "note": "STATUS 3 s 陈旧、采集 30 s、MAP 60 s、重试 2 s；场景 8 s、mover 3 s 见 sar_bridge.cjs:91,35"
+    },
+    "mosaic": {
+      "file": "tools/sar_service/http_api.cjs",
+      "line": 93,
+      "class": "setting",
+      "note": "引用 spec/display.json 的 mosaic/dB 定义"
+    },
+    "db": {
+      "file": "tools/sar_service/mosaic_store.cjs",
+      "line": 63,
+      "class": "setting",
+      "note": "引用 spec/display.json 的 Int8 dB 定义"
+    },
+    "versions.aa_proto": {
+      "file": "src/export/aesa_export.lua",
+      "line": 235,
+      "class": "setting",
+      "note": "连接后发送 PROTO,2；接收端 frame.lua 负责 DCS→ENU"
+    }
+  },
+  "known_conflicts": [
+    {
+      "id": "mapgrid_undocumented",
+      "topic": "Export 发送 MAPGRID，但 docs/conventions.md §8.3 的行表没有列出",
+      "evidence": [
+        "src/export/aesa_sar_export.lua:188 sends MAPGRID,<id>,col_x_row_z",
+        "tools/sar_live.cjs:145 accepts MAPGRID",
+        "docs/conventions.md:598-602 lists MAPBEGIN/MAPHEIGHT/... but no MAPGRID"
+      ],
+      "resolution": "spec/protocol.json 记录 MAPGRID 3 字段；文档缺口留给后续文档修订，不改变协议"
+    },
+    {
+      "id": "architecture_stale_aa_fields",
+      "topic": "docs/architecture.md §4.2 仍描述 Gate 1 前的 T 行 Country 与 velocity 字段",
+      "evidence": [
+        "docs/architecture.md:336 says T uses coalition/Country/country and obj.velocity/vel",
+        "src/export/aesa_export.lua:83-89 now reads CoalitionID",
+        "src/export/aesa_export.lua:105-108 uses LoGetVectorVelocity"
+      ],
+      "resolution": "以代码与 docs/conventions.md §8.2 为准；本任务不改架构文档，只在 spec 记录冲突"
+    },
+    {
+      "id": "aa_p_row_no_max",
+      "topic": "A/A P 行没有显式长度上限",
+      "evidence": [
+        "src/export/aesa_export.lua:129 sends 'P '..probe text",
+        "tools/receiver.py:79-80 accepts kind P with any tail"
+      ],
+      "resolution": "protocol.json 记录 min_fields=2、aa_line_max_chars=null（代码无上限），不发明一个上限"
+    }
+  ]
+}

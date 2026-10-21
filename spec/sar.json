@@ -1,0 +1,562 @@
+{
+  "schema": 1,
+  "owner": "sar",
+  "constants": {
+    "default_lambda_m": 0.03,
+    "default_bandwidth_hz": 75000000,
+    "default_width": 129,
+    "default_range_step": 8,
+    "kernel_lobes": 16,
+    "range_window_padding_cells": 20,
+    "default_window": "hann",
+    "default_range_interpolation": "cubic",
+    "default_pulse_oversampling": 2.5,
+    "pulse_oversampling_min": 1,
+    "pulse_oversampling_max": 4,
+    "min_prf_hz": 60,
+    "history_budget_bytes": 536870912,
+    "history_bytes_per_bin_pulse": 16,
+    "history_pulse_share": 0.875,
+    "max_simulated_pulses": 32768
+  },
+  "profiles": {
+    "standard": {
+      "quality": "standard",
+      "bandwidth_hz": 75000000,
+      "width": 129,
+      "pulse_oversampling": 2.5
+    },
+    "fine": {
+      "quality": "fine",
+      "bandwidth_hz": 150000000,
+      "width": 257,
+      "pulse_oversampling": 2.5
+    },
+    "fast": {
+      "quality": "fast",
+      "bandwidth_hz": 75000000,
+      "width": 65,
+      "scatter_spacing_m": 2,
+      "pulse_oversampling": 1.5
+    },
+    "effective_quality_rule": {
+      "requested": "fine",
+      "downgrade_to": "standard",
+      "bandwidth_hz": 150000000,
+      "width": 257,
+      "note": "fine 是 150 MHz + 257 px 的波形承诺；footprint 的带宽/宽度不足时实际档位降为 standard，并在 metadata 记录实际值"
+    }
+  },
+  "footprints": {
+    "detail": {
+      "size_m": 128,
+      "n": 17,
+      "scatter_spacing_m": 1
+    },
+    "area": {
+      "size_m": 512,
+      "n": 33,
+      "scatter_spacing_m": 4,
+      "width": 129,
+      "bandwidth_hz": 37500000
+    },
+    "airport": {
+      "size_m": 2048,
+      "n": 65,
+      "scatter_spacing_m": 16,
+      "width": 257,
+      "bandwidth_hz": 10000000
+    }
+  },
+  "grids": {
+    "fast": {
+      "width_divisor": 2,
+      "scatter_spacing_multiplier": 2,
+      "note": "width=ceil(width/2)，spacing=spacing×2；只对非 detail footprint 应用"
+    }
+  },
+  "materials": {
+    "land": 1,
+    "unknown": 1,
+    "shallow_water": 0.08,
+    "water": 0.015,
+    "road": 0.12,
+    "runway": 0.06,
+    "building": 8,
+    "construction": 5,
+    "town": 3,
+    "forest": 1.9,
+    "trees": 1.6,
+    "beach": 0.8,
+    "field": 0.75,
+    "traffic": 0.25,
+    "railway": 0.1,
+    "particle_effect": 0.05,
+    "river": 0.03,
+    "lake": 0.02,
+    "sea": 0.015
+  },
+  "surface_classes": [
+    "land",
+    "runway",
+    "sea",
+    "river",
+    "lake",
+    "road",
+    "railway",
+    "town",
+    "field",
+    "beach",
+    "building",
+    "construction",
+    "trees",
+    "forest",
+    "traffic",
+    "particle_effect"
+  ],
+  "surface_priority": [
+    "building",
+    "construction",
+    "town",
+    "runway",
+    "road",
+    "railway",
+    "traffic",
+    "trees",
+    "forest",
+    "field",
+    "beach",
+    "land",
+    "river",
+    "lake",
+    "sea",
+    "particle_effect"
+  ],
+  "legacy_surfaces": {
+    "0": "unknown",
+    "1": "land",
+    "2": "shallow_water",
+    "3": "water",
+    "4": "road",
+    "5": "runway"
+  },
+  "map": {
+    "engine_defaults": {
+      "cell_m": 250,
+      "cells": 121,
+      "beam_deg": 3,
+      "looks": 1,
+      "stc": true,
+      "shadow": true,
+      "layover": true,
+      "layover_margin_cells": 4,
+      "seed": 20261009,
+      "min_slant_m": 1500,
+      "surface_default": "unknown",
+      "kernel_sigmas": 3,
+      "peak_norm": false,
+      "relief": true,
+      "grid_layout": "col_x_row_z",
+      "db_ref": "fixed_material"
+    },
+    "service_defaults": {
+      "range_m": 20000,
+      "azimuth_deg": 60,
+      "cell_m": 250,
+      "beam_deg": 3,
+      "looks": 4,
+      "stc": true,
+      "shadow": true,
+      "dbs_factor": 8,
+      "peak_norm": false
+    },
+    "limits": {
+      "cell_m": {
+        "min": 25,
+        "max": 2000
+      },
+      "service_cell_m": {
+        "min": 50,
+        "max": 1000
+      },
+      "cells": {
+        "min": 5,
+        "max": 257
+      },
+      "sector_cells_max": 257,
+      "beam_deg": {
+        "min": 0.2,
+        "max": 30
+      },
+      "looks": {
+        "min": 1,
+        "max": 64
+      },
+      "layover_margin_cells": {
+        "min": 0,
+        "max": 16
+      },
+      "min_slant_m": {
+        "min": 0,
+        "max": 50000
+      },
+      "kernel_sigmas": {
+        "min": 1,
+        "max": 6
+      },
+      "dbs_factor_engine": {
+        "min": 1,
+        "max": 128
+      },
+      "dbs_factor_service": {
+        "min": 1,
+        "max": 32
+      },
+      "service_range_m": {
+        "min": 5000,
+        "max": 30000
+      },
+      "service_azimuth_deg": {
+        "min": 15,
+        "max": 75
+      },
+      "job_cells_max": 4000,
+      "job_timeout_ms": 60000,
+      "advance_m": 1000,
+      "turn_reanchor_deg": 12,
+      "frame_min_ms": 1500,
+      "render_gain": 0.06,
+      "pose_refresh_ms": 2000
+    },
+    "collection": {
+      "cells_max": 20000,
+      "rows_max": 200,
+      "step_min_m": 25,
+      "step_max_m": 2000,
+      "pose_interval_s": 0.25
+    },
+    "lattice": {
+      "limit": 400000,
+      "cell_max_m": 5000
+    },
+    "dbs": {
+      "cell_m": 25,
+      "span_min_m": 256,
+      "span_max_m": 1024,
+      "span_default_m": 512,
+      "sharpens": [
+        8,
+        32
+      ],
+      "sharpen_default": 8,
+      "near_forward_deg": 20
+    },
+    "mover": {
+      "poll_ms": 2000,
+      "radius_max_m": 50000,
+      "max": 64,
+      "mdv_mps": 2,
+      "mission_visit_max": 128,
+      "mission_lines_per_step": 16,
+      "mission_search_s": 0.1,
+      "mission_min_speed_mps": 1,
+      "bridge_timeout_ms": 3000
+    },
+    "sweep": {
+      "min_angle_deg": 30,
+      "max_angle_deg": 60,
+      "min_range_m": {
+        "$ref": "protocol.json#/sar/capture/min_range_m"
+      },
+      "max_range_m": {
+        "$ref": "protocol.json#/sar/capture/max_range_m"
+      },
+      "angle_band_deg": 5,
+      "plan_max": 20,
+      "sizes_m": [
+        512,
+        2048
+      ],
+      "default_size_m": 512,
+      "lead_s": 10,
+      "predicted_min_range_m": 1500,
+      "retry_ms": 60000,
+      "retry_max": 128
+    }
+  },
+  "pfa": {
+    "max_grid": 2048,
+    "min_grid": 256,
+    "grid_margin": 1.05,
+    "nyquist_margin": 1.05,
+    "radial_min_grid": 256,
+    "decimation_max": 8
+  },
+  "geometry": {
+    "trajectory_min_frames": 16,
+    "trajectory_max_frames": 180,
+    "trajectory_max_gap_s": 0.25,
+    "trajectory_max_speed_mps": 1500,
+    "aperture_min_s": 1.8,
+    "aperture_max_s": 2.5,
+    "clearance_min_m": 50,
+    "max_relief_m": 2000,
+    "min_transverse_aperture_m": 20,
+    "terrain_geometry_tolerance_m": 0.01
+  },
+  "scene": {
+    "max_objects": 128,
+    "object_visit_max": 512,
+    "object_bbox_max_m": 500,
+    "object_axis_tolerance": 0.01,
+    "object_pos_abs_max_m": 100000000,
+    "object_scatter_budget": 2048,
+    "model_objects_max": 32,
+    "surface_grid_cells_expr": "n*n"
+  },
+  "render": {
+    "default_scene_model": "uniform",
+    "scene_models": [
+      "uniform",
+      "classified"
+    ],
+    "default_focuser": "backprojection",
+    "focusers": [
+      "backprojection",
+      "pfa"
+    ],
+    "windows": [
+      "rect",
+      "hann"
+    ],
+    "range_interpolations": [
+      "linear",
+      "cubic"
+    ],
+    "scatter_spacings_m": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ],
+    "widths_px": [
+      65,
+      129,
+      257
+    ],
+    "shadow_looks": [
+      "center",
+      "pulse"
+    ],
+    "default_seed": 20261001,
+    "default_shadow": true,
+    "default_shadow_look": "center",
+    "db_floor_ref": {
+      "$ref": "display.json#/db/floor_db"
+    },
+    "db_ref": {
+      "$ref": "display.json#/db/ref_by_product/sar"
+    }
+  },
+  "sources": {
+    "constants": {
+      "file": "src/sar_core/settings.cjs",
+      "line": 24,
+      "class": "setting",
+      "note": "DEFAULTS：lambda .03、BW 75 MHz、width 129、rangeStep 8、kernelLobes 16、seed 20261001（Gate 5 前在 tools/sar_surface.cjs）"
+    },
+    "constants.default_pulse_oversampling": {
+      "file": "src/sar_core/waveform.cjs",
+      "line": 17,
+      "class": "assumption",
+      "note": "多普勒支撑过采样 2.5 是项目抗混叠裕度"
+    },
+    "constants.history_budget_bytes": {
+      "file": "src/sar_core/memory.cjs",
+      "line": 15,
+      "class": "setting",
+      "note": "512 MiB 回波历史预算"
+    },
+    "constants.history_bytes_per_bin_pulse": {
+      "file": "src/sar_core/memory.cjs",
+      "line": 16,
+      "class": "derived",
+      "note": "complex128 = 16 B"
+    },
+    "constants.history_pulse_share": {
+      "file": "src/sar_core/memory.cjs",
+      "line": 20,
+      "class": "setting",
+      "note": "脉冲份额 7/8 = 448 MiB"
+    },
+    "constants.max_simulated_pulses": {
+      "file": "src/sar_core/memory.cjs",
+      "line": 24,
+      "class": "setting",
+      "note": "小 patch 的绝对脉冲上限"
+    },
+    "profiles": {
+      "file": "src/sar_core/settings.cjs",
+      "line": 66,
+      "class": "setting",
+      "note": "standard/fine/fast；fast 为显式有损测试档"
+    },
+    "footprints": {
+      "file": "src/adapters/dcs/sar_adapter.cjs",
+      "line": 19,
+      "class": "setting",
+      "note": "detail/area/airport 的 size/n/scatterSpacing/width/bandwidth；DCS 词汇归适配层"
+    },
+    "grids.fast": {
+      "file": "src/sar_core/settings.cjs",
+      "line": 70,
+      "class": "derived",
+      "note": "GRIDS.fast：宽度减半、spacing 加倍"
+    },
+    "materials": {
+      "file": "src/sar_core/materials.cjs",
+      "line": 17,
+      "class": "assumption",
+      "note": "相对裸地法向入射的材质系数；全部为项目假设"
+    },
+    "surface_classes": {
+      "file": "src/sar_core/materials.cjs",
+      "line": 17,
+      "class": "official",
+      "note": "引擎 64 位地表 mask 的 16 类，顺序按探针位升序；词表来自生成配置"
+    },
+    "surface_priority": {
+      "file": "src/sar_core/materials.cjs",
+      "line": 31,
+      "class": "setting",
+      "note": "按雷达显著性而非土地利用排序"
+    },
+    "legacy_surfaces": {
+      "file": "src/adapters/dcs/sar_adapter.cjs",
+      "line": 31,
+      "class": "official",
+      "note": "terrain.GetSurfaceType 旧五类词表"
+    },
+    "map.engine_defaults": {
+      "file": "src/sar_core/map.cjs",
+      "line": 56,
+      "class": "setting",
+      "note": "sar_map 渲染器 DEFAULT；looks=1、cells=121"
+    },
+    "map.service_defaults": {
+      "file": "src/shared/config.cjs",
+      "line": 1,
+      "class": "setting",
+      "note": "SAR 服务 MAP 默认值；looks=4（生成配置 SAR_MAP_SERVICE_DEFAULTS）"
+    },
+    "map.limits": {
+      "file": "src/sar_core/map.cjs",
+      "line": 50,
+      "class": "setting",
+      "note": "引擎/service 的校验范围；service 范围见 spec/sar.json map.limits.service_*"
+    },
+    "map.collection": {
+      "file": "src/export/sar_protocol.lua",
+      "line": 13,
+      "class": "setting",
+      "note": "MAP_CELLS/MAP_ROWS/MAP_STEP/MAP_POSE（Export 线协议常量）"
+    },
+    "map.lattice": {
+      "file": "src/sar_core/map.cjs",
+      "line": 103,
+      "class": "setting",
+      "note": "世界栅格缓存上限 400000"
+    },
+    "map.dbs": {
+      "file": "tools/sar_service/dbs_session.cjs",
+      "line": 14,
+      "class": "setting",
+      "note": "DBS 25 m 格、256-1024 m 块、8/32 锐化"
+    },
+    "map.mover": {
+      "file": "tools/sar_service/service.cjs",
+      "line": 35,
+      "class": "setting",
+      "note": "GMTI 轮询 2 s、半径 50 km、最多 64、MDV 2 m/s"
+    },
+    "map.sweep": {
+      "file": "tools/sar_service/sweep_planner.cjs",
+      "line": 18,
+      "class": "setting",
+      "note": "扫掠窗口 30-60°、1-50 km；计划/退避参数同文件 35 行"
+    },
+    "pfa": {
+      "file": "src/sar_core/pfa.cjs",
+      "line": 37,
+      "class": "setting",
+      "note": "MAX_PFA_GRID=2048；网格/径向下限 256、margin 1.05"
+    },
+    "geometry": {
+      "file": "src/sar_core/geometry.cjs",
+      "line": 31,
+      "class": "setting",
+      "note": "轨迹 16-180 帧、间隔 ≤0.25 s、速度 ≤1500 m/s、孔径 1.8-2.5 s、净空 50 m、起伏 2000 m"
+    },
+    "scene": {
+      "file": "src/adapters/dcs/sar_adapter.cjs",
+      "line": 16,
+      "class": "setting",
+      "note": "对象最多 128、包围盒 ≤500 m、轴正交容差 0.01；DCS 对象类别词表同文件 42 行"
+    },
+    "render": {
+      "file": "src/sar_core/settings.cjs",
+      "line": 24,
+      "class": "setting",
+      "note": "DEFAULTS：sceneModel uniform、focuser backprojection、window hann、shadow center、seed 20261001"
+    },
+    "constants.range_window_padding_cells": {
+      "file": "src/sar_core/memory.cjs",
+      "line": 27,
+      "class": "assumption",
+      "note": "Range window padding in resolution cells past the farthest scatterer; kernel lobes (16) + 4 guard cells. Gate 5 lifted it out of the hard-coded 20*resolution in planScene/reconstructLegacy."
+    },
+    "render.db_ref": {
+      "file": "src/sar_core/engine.cjs",
+      "line": 26,
+      "class": "setting",
+      "note": "SAR 结果逐帧峰值参考（与 MAP 的固定材质参考分开标注）"
+    },
+    "map.engine_defaults.db_ref": {
+      "file": "src/sar_core/map.cjs",
+      "line": 500,
+      "class": "setting",
+      "note": "MAP 默认固定材质参考；peak_norm:true 时回到 frame_peak"
+    }
+  },
+  "known_conflicts": [
+    {
+      "id": "map_looks_default",
+      "topic": "MAP 多视默认值在引擎与服务两层不同",
+      "evidence": [
+        "tools/sar_map.cjs:49 DEFAULTS.looks=1",
+        "tools/sar_live.cjs:679 MAP_DEFAULTS.looks=4"
+      ],
+      "resolution": "spec 同时保留 engine_defaults.looks=1 与 service_defaults.looks=4；消费者必须显式传服务默认值，本任务不擅自统一"
+    },
+    {
+      "id": "map_cells_default",
+      "topic": "MAP 格数默认值在引擎与服务两层不同",
+      "evidence": [
+        "tools/sar_map.cjs:49 DEFAULTS.cells=121",
+        "tools/sar_live.cjs:697 cfg.cells=mapEngine.sectorGrid({range_m,cell_m})（默认 20 km/250 m → 161）"
+      ],
+      "resolution": "spec 保留引擎默认 121，并记录服务端派生规则；不把 121 当成服务默认"
+    },
+    {
+      "id": "map_serving_defaults_not_passed",
+      "topic": "sar_map 的 looks/cells 默认只在调用方不传时生效",
+      "evidence": [
+        "tools/sar_live.cjs:693-700 显式构造 cfg 后传给 sar_map",
+        "tools/sar_map.cjs:60 cfg={...DEFAULTS,...input}"
+      ],
+      "resolution": "生成配置同时提供 engine_defaults 与 service_defaults，迁移时不得只取一份"
+    }
+  ]
+}

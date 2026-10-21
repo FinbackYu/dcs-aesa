@@ -1,0 +1,196 @@
+{
+  "schema": 1,
+  "schemaVersion": 1,
+  "gate": 0,
+  "command": "node scripts/audit_repo.cjs --update-baseline",
+  "cwd": "<repo>",
+  "commit": "4429241660a5cbfcd3f7fc77b12f451c11bc134d",
+  "baselineTag": "pre-arch-refactor",
+  "generatedAt": "2026-10-18T15:54:03.789Z",
+  "generatedBy": "scripts/audit_repo.cjs --update-baseline",
+  "description": "Gate 0 已知问题 allowlist。audit_repo.cjs 只把基线之外的 error 计为失败；warn 不改变退出码（--strict 时改变）。",
+  "git": {
+    "branch": "refactor/architecture-gates",
+    "commit": "4429241660a5cbfcd3f7fc77b12f451c11bc134d",
+    "shortCommit": "4429241",
+    "tags": []
+  },
+  "environment": {
+    "os": "Windows",
+    "node": "v25.9.0",
+    "python": null,
+    "lupa": null,
+    "dcsBuild": null,
+    "lua": null,
+    "savedGames": null,
+    "note": "audit_repo 本身不需要 Python/lupa/DCS；这些字段留作 Gate 环境记录。"
+  },
+  "inputs": {
+    "scope": "git tracked + untracked non-ignored files",
+    "baseline": "tests/baseline/audit-baseline.json"
+  },
+  "metrics": {
+    "trackedFiles": 232,
+    "findings": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "tolerance": {},
+  "expectedGate0Paths": [
+    "AGENTS.md",
+    "DEPRECATIONS.md",
+    "README.md",
+    "docs/architecture.md",
+    "docs/conventions.md",
+    "docs/dcs-compat.md",
+    "docs/design-fc-injection.md",
+    "docs/file-inventory.md",
+    "docs/refactor-plan.md",
+    "docs/status.md",
+    "docs/testing-gates.md",
+    "scripts/audit_repo.cjs",
+    "scripts/capture_baseline.cjs",
+    "scripts/test_all.cjs"
+  ],
+  "expectedGate0ModifiedPaths": [
+    "AGENTS.md",
+    "README.md",
+    "docs/design-fc-injection.md",
+    "docs/status.md"
+  ],
+  "expectedGate0Prefixes": [
+    "tests/baseline/"
+  ],
+  "notes": [
+    "本文件只记录 Gate 0 当时已经存在的问题，不代表问题可接受。",
+    "后续 Gate 修复后删除对应条目；用 --update-baseline 重新生成，不要手改计数来“变绿”。",
+    "新增条目必须能解释归属（Gate/owner），不得为了通过审计修改业务代码。",
+    "生成物只校验头标记，未重新运行 generator 验证内容 hash。",
+    "测试 skip 为静态标记计数；运行时 skip 以 scripts/test_all.cjs 的报告为准。",
+    "本地链接只校验路径存在，不校验 #anchor。",
+    "Lua dofile/loadfile 与 Python 动态 sys.path 导入不做全量解析；只检查 JS 相对 require 和生产工具对 tests/ 的依赖。",
+    "文档状态只读前 30 行，避免 ADR 的“状态：Accepted”被误认成文档级状态。"
+  ],
+  "ruleCatalog": {
+    "git-unowned": {
+      "check": "git",
+      "severity": "error",
+      "gate": "Gate 0",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "工作区存在计划外修改或未跟踪文件；每个未跟踪文件都要有归属。"
+    },
+    "git-clean-unowned": {
+      "check": "git",
+      "severity": "error",
+      "gate": "Gate 0",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "git clean -nd 列出未归属的临时文件或目录。"
+    },
+    "suspicious-filename": {
+      "check": "filenames",
+      "severity": "error",
+      "gate": "Gate 0/7",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "文件名或目录名含 _old/_new/_vN/copy/backup/bak/tmp/deprecated。"
+    },
+    "todo-metadata": {
+      "check": "todos",
+      "severity": "warn",
+      "gate": "Gate 6",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "TODO/FIXME/XXX/HACK/DEPRECATED 必须带 owner 与日期。"
+    },
+    "game-api-out-of-bounds": {
+      "check": "game-api",
+      "severity": "error",
+      "gate": "Gate 3",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "游戏 API 只允许出现在 src/adapters/dcs/api/（Gate 3 才创建该目录）。"
+    },
+    "duplicate-constant": {
+      "check": "constants",
+      "severity": "warn",
+      "gate": "Gate 2",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "常量应只来自 spec/、生成物或 tests/fixtures/。"
+    },
+    "legacy-symbol": {
+      "check": "legacy",
+      "severity": "warn",
+      "gate": "Gate 2/4/5",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "重构计划中要删除或改名的旧符号，先记录后收紧。"
+    },
+    "broken-require": {
+      "check": "legacy",
+      "severity": "error",
+      "gate": "Gate 4/5",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "相对 require/import 的目标文件不存在。"
+    },
+    "tests-import-in-prod": {
+      "check": "legacy",
+      "severity": "warn",
+      "gate": "Gate 4",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "生产工具依赖 tests/；Gate 4 要拆出共享模块。"
+    },
+    "docs-status-missing": {
+      "check": "docs",
+      "severity": "warn",
+      "gate": "Gate 6",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "文档缺少 current/historical/external-reference/draft 状态标签。"
+    },
+    "docs-status-invalid": {
+      "check": "docs",
+      "severity": "warn",
+      "gate": "Gate 6",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "文档状态标签不在允许集合内。"
+    },
+    "dead-link": {
+      "check": "docs",
+      "severity": "error",
+      "gate": "Gate 6",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "本地 Markdown 链接目标不存在。"
+    },
+    "docs-pending-link": {
+      "check": "docs",
+      "severity": "warn",
+      "gate": "Gate 0",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "链接指向 Gate 0 计划内、当前尚未生成的文件。"
+    },
+    "generated-header": {
+      "check": "generated",
+      "severity": "error",
+      "gate": "Gate 2",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "生成物缺少 DO NOT EDIT / generator / hash 头。"
+    },
+    "test-skip": {
+      "check": "skips",
+      "severity": "warn",
+      "gate": "Gate 7",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "测试含 skip；数量、条件与原因进入基线，关键套件不允许静默跳过。"
+    },
+    "tracked-artifact": {
+      "check": "artifacts",
+      "severity": "error",
+      "gate": "Gate 0",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": "recordings/、__pycache__/、dist/ 运行产物不应被跟踪。"
+    },
+    "gitignore-missing": {
+      "check": "artifacts",
+      "severity": "warn",
+      "gate": "Gate 0",
+      "owner": "项目维护者（Gate 0 审计）",
+      "note": ".gitignore 缺少运行产物的忽略规则。"
+    }
+  },
+  "allowlist": []
+}

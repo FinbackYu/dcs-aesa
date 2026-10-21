@@ -1,0 +1,1174 @@
+{
+  "schema": 1,
+  "DO_NOT_EDIT": true,
+  "generator": "scripts/gen_config.cjs",
+  "input_sha256": "858bffd8f2557876a9de0c18b44e5f8f396b9001f11b426421d0ef844de6cca7",
+  "spec_files": [
+    "spec/physics.json",
+    "spec/radar.json",
+    "spec/sar.json",
+    "spec/protocol.json",
+    "spec/deployment.json",
+    "spec/display.json"
+  ],
+  "config": {
+    "physics": {
+      "c_mps": 299792458,
+      "boltzmann_j_per_k": 1.380649e-23,
+      "t0_k": 290,
+      "earth_radius_m": 6371000,
+      "earth_k": 1.3333333333333333
+    },
+    "radar": {
+      "lambda_m": 0.03,
+      "ptx_avg_w": 2000,
+      "ptx_peak_w": 20000,
+      "gain0_db": 37,
+      "nf_db": 3,
+      "loss_db": 6,
+      "pfa": 0.000001,
+      "integration_efficiency": 1,
+      "coherence_time_s": false,
+      "fluctuation_hold_s": 0.25,
+      "scan_k": 1,
+      "scan_cone_deg": 60,
+      "steer_overhead_s": 0.00001,
+      "hpbw_az_deg": 3,
+      "hpbw_el_deg": 3,
+      "dwell_search_s": 0.01,
+      "dwell_track_s": 0.005,
+      "dwell_stt_s": 0.006,
+      "dwell_compensation": true,
+      "horizon_enabled": true,
+      "earth_radius_m": 6371000,
+      "earth_k": 1.3333333333333333,
+      "surface_alt_m": 0,
+      "min_range_m": 0,
+      "max_range_m": false,
+      "prf": [
+        {
+          "name": "HPRF",
+          "prf_hz": 200000,
+          "tau_s": 0.000002,
+          "notch_half_mps": 20,
+          "zero_notch_half_mps": 0
+        },
+        {
+          "name": "MPRF",
+          "prf_hz": 20000,
+          "tau_s": 0.000005,
+          "notch_half_mps": 25,
+          "zero_notch_half_mps": 0
+        },
+        {
+          "name": "LPRF",
+          "prf_hz": 2000,
+          "tau_s": 0.000001,
+          "notch_half_mps": 5,
+          "zero_notch_half_mps": 0
+        },
+        {
+          "name": "MPRF_ALT",
+          "prf_hz": 18000,
+          "tau_s": 0.000005,
+          "notch_half_mps": 25,
+          "zero_notch_half_mps": 0
+        },
+        {
+          "name": "HPRF_ALT",
+          "prf_hz": 164000,
+          "tau_s": 0.000002,
+          "notch_half_mps": 20,
+          "zero_notch_half_mps": 0
+        }
+      ]
+    },
+    "scheduler": {
+      "search": {
+        "az_span_deg": 30,
+        "az_step_deg": 3,
+        "el_bars_deg": [
+          -4.5,
+          -2.25,
+          0,
+          2.25,
+          4.5
+        ]
+      },
+      "revisit": {
+        "track_far_hz": 1,
+        "track_near_hz": 4,
+        "stt_hz": 6,
+        "near_range_m": 50000,
+        "near_prf_R_m": 8000
+      },
+      "prf_selection": {
+        "search": [
+          "MPRF",
+          "MPRF_ALT",
+          "HPRF",
+          "HPRF_ALT"
+        ],
+        "track_far": [
+          "MPRF",
+          "MPRF_ALT"
+        ],
+        "track_near": [
+          "HPRF",
+          "HPRF_ALT",
+          "MPRF",
+          "MPRF_ALT"
+        ],
+        "stt": [
+          "HPRF",
+          "HPRF_ALT"
+        ]
+      }
+    },
+    "tracker": {
+      "confirm_m": 2,
+      "confirm_window_s": 8,
+      "coast_s": 6,
+      "gate_base_m": 250,
+      "gate_vel_margin_mps": 150,
+      "gate_max_m": 2000,
+      "vel_floor_mps": 350,
+      "gate_accel_margin_mps": 300,
+      "vel_smooth": 0.5,
+      "vel_accel_max_mps2": 120,
+      "slow_mover_mps": 25
+    },
+    "sar": {
+      "constants": {
+        "default_lambda_m": 0.03,
+        "default_bandwidth_hz": 75000000,
+        "default_width": 129,
+        "default_range_step": 8,
+        "kernel_lobes": 16,
+        "range_window_padding_cells": 20,
+        "default_window": "hann",
+        "default_range_interpolation": "cubic",
+        "default_pulse_oversampling": 2.5,
+        "pulse_oversampling_min": 1,
+        "pulse_oversampling_max": 4,
+        "min_prf_hz": 60,
+        "history_budget_bytes": 536870912,
+        "history_bytes_per_bin_pulse": 16,
+        "history_pulse_share": 0.875,
+        "max_simulated_pulses": 32768
+      },
+      "profiles": {
+        "standard": {
+          "quality": "standard",
+          "bandwidth_hz": 75000000,
+          "width": 129,
+          "pulse_oversampling": 2.5
+        },
+        "fine": {
+          "quality": "fine",
+          "bandwidth_hz": 150000000,
+          "width": 257,
+          "pulse_oversampling": 2.5
+        },
+        "fast": {
+          "quality": "fast",
+          "bandwidth_hz": 75000000,
+          "width": 65,
+          "scatter_spacing_m": 2,
+          "pulse_oversampling": 1.5
+        },
+        "effective_quality_rule": {
+          "requested": "fine",
+          "downgrade_to": "standard",
+          "bandwidth_hz": 150000000,
+          "width": 257,
+          "note": "fine 是 150 MHz + 257 px 的波形承诺；footprint 的带宽/宽度不足时实际档位降为 standard，并在 metadata 记录实际值"
+        }
+      },
+      "footprints": {
+        "detail": {
+          "size_m": 128,
+          "n": 17,
+          "scatter_spacing_m": 1
+        },
+        "area": {
+          "size_m": 512,
+          "n": 33,
+          "scatter_spacing_m": 4,
+          "width": 129,
+          "bandwidth_hz": 37500000
+        },
+        "airport": {
+          "size_m": 2048,
+          "n": 65,
+          "scatter_spacing_m": 16,
+          "width": 257,
+          "bandwidth_hz": 10000000
+        }
+      },
+      "grids": {
+        "fast": {
+          "width_divisor": 2,
+          "scatter_spacing_multiplier": 2,
+          "note": "width=ceil(width/2)，spacing=spacing×2；只对非 detail footprint 应用"
+        }
+      },
+      "materials": {
+        "land": 1,
+        "unknown": 1,
+        "shallow_water": 0.08,
+        "water": 0.015,
+        "road": 0.12,
+        "runway": 0.06,
+        "building": 8,
+        "construction": 5,
+        "town": 3,
+        "forest": 1.9,
+        "trees": 1.6,
+        "beach": 0.8,
+        "field": 0.75,
+        "traffic": 0.25,
+        "railway": 0.1,
+        "particle_effect": 0.05,
+        "river": 0.03,
+        "lake": 0.02,
+        "sea": 0.015
+      },
+      "surface_classes": [
+        "land",
+        "runway",
+        "sea",
+        "river",
+        "lake",
+        "road",
+        "railway",
+        "town",
+        "field",
+        "beach",
+        "building",
+        "construction",
+        "trees",
+        "forest",
+        "traffic",
+        "particle_effect"
+      ],
+      "surface_priority": [
+        "building",
+        "construction",
+        "town",
+        "runway",
+        "road",
+        "railway",
+        "traffic",
+        "trees",
+        "forest",
+        "field",
+        "beach",
+        "land",
+        "river",
+        "lake",
+        "sea",
+        "particle_effect"
+      ],
+      "legacy_surfaces": {
+        "0": "unknown",
+        "1": "land",
+        "2": "shallow_water",
+        "3": "water",
+        "4": "road",
+        "5": "runway"
+      },
+      "map": {
+        "engine_defaults": {
+          "cell_m": 250,
+          "cells": 121,
+          "beam_deg": 3,
+          "looks": 1,
+          "stc": true,
+          "shadow": true,
+          "layover": true,
+          "layover_margin_cells": 4,
+          "seed": 20261009,
+          "min_slant_m": 1500,
+          "surface_default": "unknown",
+          "kernel_sigmas": 3,
+          "peak_norm": false,
+          "relief": true,
+          "grid_layout": "col_x_row_z",
+          "db_ref": "fixed_material"
+        },
+        "service_defaults": {
+          "range_m": 20000,
+          "azimuth_deg": 60,
+          "cell_m": 250,
+          "beam_deg": 3,
+          "looks": 4,
+          "stc": true,
+          "shadow": true,
+          "dbs_factor": 8,
+          "peak_norm": false
+        },
+        "limits": {
+          "cell_m": {
+            "min": 25,
+            "max": 2000
+          },
+          "service_cell_m": {
+            "min": 50,
+            "max": 1000
+          },
+          "cells": {
+            "min": 5,
+            "max": 257
+          },
+          "sector_cells_max": 257,
+          "beam_deg": {
+            "min": 0.2,
+            "max": 30
+          },
+          "looks": {
+            "min": 1,
+            "max": 64
+          },
+          "layover_margin_cells": {
+            "min": 0,
+            "max": 16
+          },
+          "min_slant_m": {
+            "min": 0,
+            "max": 50000
+          },
+          "kernel_sigmas": {
+            "min": 1,
+            "max": 6
+          },
+          "dbs_factor_engine": {
+            "min": 1,
+            "max": 128
+          },
+          "dbs_factor_service": {
+            "min": 1,
+            "max": 32
+          },
+          "service_range_m": {
+            "min": 5000,
+            "max": 30000
+          },
+          "service_azimuth_deg": {
+            "min": 15,
+            "max": 75
+          },
+          "job_cells_max": 4000,
+          "job_timeout_ms": 60000,
+          "advance_m": 1000,
+          "turn_reanchor_deg": 12,
+          "frame_min_ms": 1500,
+          "render_gain": 0.06,
+          "pose_refresh_ms": 2000
+        },
+        "collection": {
+          "cells_max": 20000,
+          "rows_max": 200,
+          "step_min_m": 25,
+          "step_max_m": 2000,
+          "pose_interval_s": 0.25
+        },
+        "lattice": {
+          "limit": 400000,
+          "cell_max_m": 5000
+        },
+        "dbs": {
+          "cell_m": 25,
+          "span_min_m": 256,
+          "span_max_m": 1024,
+          "span_default_m": 512,
+          "sharpens": [
+            8,
+            32
+          ],
+          "sharpen_default": 8,
+          "near_forward_deg": 20
+        },
+        "mover": {
+          "poll_ms": 2000,
+          "radius_max_m": 50000,
+          "max": 64,
+          "mdv_mps": 2,
+          "mission_visit_max": 128,
+          "mission_lines_per_step": 16,
+          "mission_search_s": 0.1,
+          "mission_min_speed_mps": 1,
+          "bridge_timeout_ms": 3000
+        },
+        "sweep": {
+          "min_angle_deg": 30,
+          "max_angle_deg": 60,
+          "min_range_m": 1000,
+          "max_range_m": 50000,
+          "angle_band_deg": 5,
+          "plan_max": 20,
+          "sizes_m": [
+            512,
+            2048
+          ],
+          "default_size_m": 512,
+          "lead_s": 10,
+          "predicted_min_range_m": 1500,
+          "retry_ms": 60000,
+          "retry_max": 128
+        }
+      },
+      "pfa": {
+        "max_grid": 2048,
+        "min_grid": 256,
+        "grid_margin": 1.05,
+        "nyquist_margin": 1.05,
+        "radial_min_grid": 256,
+        "decimation_max": 8
+      },
+      "geometry": {
+        "trajectory_min_frames": 16,
+        "trajectory_max_frames": 180,
+        "trajectory_max_gap_s": 0.25,
+        "trajectory_max_speed_mps": 1500,
+        "aperture_min_s": 1.8,
+        "aperture_max_s": 2.5,
+        "clearance_min_m": 50,
+        "max_relief_m": 2000,
+        "min_transverse_aperture_m": 20,
+        "terrain_geometry_tolerance_m": 0.01
+      },
+      "scene": {
+        "max_objects": 128,
+        "object_visit_max": 512,
+        "object_bbox_max_m": 500,
+        "object_axis_tolerance": 0.01,
+        "object_pos_abs_max_m": 100000000,
+        "object_scatter_budget": 2048,
+        "model_objects_max": 32,
+        "surface_grid_cells_expr": "n*n"
+      },
+      "render": {
+        "default_scene_model": "uniform",
+        "scene_models": [
+          "uniform",
+          "classified"
+        ],
+        "default_focuser": "backprojection",
+        "focusers": [
+          "backprojection",
+          "pfa"
+        ],
+        "windows": [
+          "rect",
+          "hann"
+        ],
+        "range_interpolations": [
+          "linear",
+          "cubic"
+        ],
+        "scatter_spacings_m": [
+          1,
+          2,
+          4,
+          8,
+          16,
+          32
+        ],
+        "widths_px": [
+          65,
+          129,
+          257
+        ],
+        "shadow_looks": [
+          "center",
+          "pulse"
+        ],
+        "default_seed": 20261001,
+        "default_shadow": true,
+        "default_shadow_look": "center",
+        "db_floor_ref": -40,
+        "db_ref": "frame_peak"
+      }
+    },
+    "protocol": {
+      "schema": 1,
+      "host": "127.0.0.1",
+      "ports": {
+        "aa_export": 3590,
+        "aa_http": 3591,
+        "sar_tcp": 3592,
+        "sar_http": 3593,
+        "sar_scene": 3594
+      },
+      "versions": {
+        "aa": "V1",
+        "sar": "SAR1",
+        "sar_caps": 2,
+        "scene": "SARSCENE1",
+        "scene_caps": 1,
+        "aa_proto": "2"
+      },
+      "aa": {
+        "sample_rate_hz": 10,
+        "line_ending": "\n",
+        "coalition_values": [
+          0,
+          1,
+          2
+        ],
+        "vel_valid_values": [
+          0,
+          1
+        ],
+        "rows": {
+          "V1": {
+            "fields": 1
+          },
+          "PROTO": {
+            "fields": 2,
+            "tokens": [
+              "PROTO",
+              "2"
+            ],
+            "note": "A/A 坐标/姿态声明：原始 DCS 值（x 北、y 上、z 东；Heading 从北顺时针）。缺失时按 V1 旧约定解释"
+          },
+          "COMPAT": {
+            "fields": 3
+          },
+          "P": {
+            "min_fields": 2,
+            "note": "首帧字段名探针；P 后可带任意探针文本"
+          },
+          "A": {
+            "fields": 10,
+            "legacy_fields": [
+              9
+            ]
+          },
+          "O": {
+            "fields": 5
+          },
+          "T": {
+            "fields": 12,
+            "legacy_fields": [
+              11
+            ]
+          },
+          "L": {
+            "fields": 4
+          },
+          "E": {
+            "fields": [
+              7,
+              10
+            ]
+          }
+        }
+      },
+      "sar": {
+        "status_rate_hz": 1,
+        "pose_rate_hz": 60,
+        "default_size_m": 128,
+        "default_n": 17,
+        "duration_s": 2,
+        "default_footprint": "detail",
+        "capture": {
+          "min_range_m": 1000,
+          "max_range_m": 50000,
+          "side_values": [
+            -1,
+            1
+          ],
+          "size_n_pairs": [
+            [
+              128,
+              17
+            ],
+            [
+              512,
+              33
+            ],
+            [
+              2048,
+              65
+            ]
+          ]
+        },
+        "image_window": {
+          "min_angle_deg": 20,
+          "max_angle_deg": 160
+        },
+        "map": {
+          "cells_max": 20000,
+          "rows_max": 200,
+          "step_min_m": 25,
+          "step_max_m": 2000,
+          "pose_interval_s": 0.25,
+          "job_timeout_ms": 60000,
+          "surface_token_max_chars": 96,
+          "surface_parts_max": 16,
+          "grid_layout": "col_x_row_z"
+        },
+        "rows": {
+          "HELLO": {
+            "fields": 2,
+            "tokens": [
+              "HELLO",
+              "SAR1"
+            ]
+          },
+          "CAPS": {
+            "fields": [
+              3,
+              4
+            ]
+          },
+          "COMPAT": {
+            "fields": 3
+          },
+          "STATUS": {
+            "fields": [
+              6,
+              7
+            ]
+          },
+          "BEGIN": {
+            "fields": 7
+          },
+          "TARGET": {
+            "fields": 6
+          },
+          "HEIGHT": {
+            "fields": 6
+          },
+          "SURFACE": {
+            "fields": 4
+          },
+          "POSE": {
+            "fields": 6
+          },
+          "END": {
+            "fields": 4
+          },
+          "FAIL": {
+            "fields": [
+              3,
+              4
+            ]
+          },
+          "MAPBEGIN": {
+            "fields": 7
+          },
+          "MAPGRID": {
+            "fields": 3
+          },
+          "MAPHEIGHT": {
+            "fields": 7
+          },
+          "MAPSURFACE": {
+            "fields": 5
+          },
+          "MAPPOSE": {
+            "fields": 9
+          },
+          "MAPEND": {
+            "fields": 4
+          }
+        },
+        "commands": {
+          "CAPTURE": {
+            "fields": [
+              4,
+              6
+            ]
+          },
+          "CAPTURE_GEO": {
+            "fields": [
+              4,
+              6
+            ]
+          },
+          "CAPTURE_WORLD": {
+            "fields": [
+              4,
+              6
+            ]
+          },
+          "CAPTURE_MAP": {
+            "fields": 7
+          },
+          "CAPTURE_MAP_AT": {
+            "fields": 7
+          },
+          "CANCEL": {
+            "fields": 1
+          },
+          "SURFACE_FINE": {
+            "fields": 1
+          }
+        }
+      },
+      "scene": {
+        "object_max": 128,
+        "object_visit_max": 512,
+        "mover_max": 64,
+        "mover_radius_max_m": 50000,
+        "mover_visit_max": 128,
+        "mover_lines_per_step": 16,
+        "mover_search_s": 0.1,
+        "mover_min_speed_mps": 1,
+        "mover_timeout_ms": 3000,
+        "rows": {
+          "HELLO": {
+            "fields": 2,
+            "tokens": [
+              "HELLO",
+              "SARSCENE1"
+            ]
+          },
+          "CAP": {
+            "fields": [
+              4,
+              5
+            ]
+          },
+          "COMPAT": {
+            "fields": 3
+          },
+          "SURFACE": {
+            "fields": 4
+          },
+          "OBJECT": {
+            "fields": 22
+          },
+          "SCENE_END": {
+            "fields": 6
+          },
+          "MOVER": {
+            "fields": 10
+          },
+          "MOVER_END": {
+            "fields": 6
+          },
+          "MOVER_FAIL": {
+            "fields": 3
+          },
+          "FAIL": {
+            "fields": [
+              3,
+              4
+            ]
+          },
+          "BRIDGE_ERROR": {
+            "fields": 1
+          }
+        },
+        "commands": {
+          "SCENE": {
+            "fields": 7
+          },
+          "MOVER": {
+            "fields": 5
+          },
+          "CANCEL": {
+            "fields": 1
+          },
+          "MOVER_CANCEL": {
+            "fields": 1
+          }
+        }
+      },
+      "limits": {
+        "aa_line_max_chars": null,
+        "aa_recv_buffer_bytes": null,
+        "sar_command_max_chars": 160,
+        "sar_server_line_max_chars": 512,
+        "recv_buffer_bytes": 65536,
+        "sar_export_pending_max_bytes": 65536,
+        "scene_line_max_chars": 2048,
+        "scene_recv_buffer_bytes": 65536,
+        "scene_pending_max_bytes": 65536,
+        "scene_partial_fragment_max_chars": 256,
+        "map_surface_max_chars": 96
+      },
+      "timeouts": {
+        "aa_reconnect_s": 2,
+        "aa_socket_s": 30,
+        "aa_sse_retry_ms": 2000,
+        "sar_export_reconnect_s": 2,
+        "sar_status_stale_ms": 3000,
+        "sar_capture_timeout_ms": 30000,
+        "sar_map_job_timeout_ms": 60000,
+        "sar_map_retry_backoff_ms": 2000,
+        "scene_response_timeout_ms": 8000,
+        "scene_reconnect_s": 2,
+        "scene_reprobe_s": 5,
+        "mover_response_timeout_ms": 3000
+      },
+      "mosaic": {
+        "limit": 50,
+        "poll_ms": 700,
+        "db_step": 0.25,
+        "no_data": -128
+      },
+      "db": {
+        "step": 0.25,
+        "no_data": -128,
+        "clamp_min": -127,
+        "clamp_max": 48
+      }
+    },
+    "deployment": {
+      "saved_games": {
+        "path_env": "USERPROFILE",
+        "default_candidates": [
+          "%USERPROFILE%/Saved Games/DCS",
+          "%USERPROFILE%/Saved Games/DCS.openbeta"
+        ],
+        "cli_flag": "--saved-games",
+        "selection": "explicit --saved-games required; no implicit target selection",
+        "scripts_root": "Scripts",
+        "logs_root": "Logs/AESA"
+      },
+      "products": {
+        "aa_export": {
+          "source": "src/export/aesa_export.lua",
+          "script": "Scripts/AESA/aesa_export.lua",
+          "manifest": "Scripts/AESA/manifest.json",
+          "marker_begin": "--[[ AESA EXPORT BEGIN ]]",
+          "marker_end": "--[[ AESA EXPORT END ]]",
+          "backup_suffix": ".bak-aesa",
+          "diag_log": "Scripts/AESA/export_diag.log"
+        },
+        "sar_export": {
+          "source": "src/export/aesa_sar_export.lua",
+          "script": "Scripts/AESA-SAR/aesa_sar_export.lua",
+          "manifest": "Scripts/AESA-SAR/manifest.json",
+          "marker_begin": "AESA SAR BEGIN",
+          "marker_end": "AESA SAR END",
+          "backup_suffix": ".bak-aesa",
+          "diag_log": "Scripts/AESA-SAR/export_diag.log"
+        },
+        "sar_scene": {
+          "sources": [
+            "src/hooks/aesa_sar_scene_hook.lua",
+            "src/scene/aesa_sar_mission.lua"
+          ],
+          "script": "Scripts/Hooks/aesa_sar_scene_hook.lua",
+          "manifest": "Scripts/AESA-SAR/scene-manifest.json",
+          "backup_suffix": ".bak-aesa"
+        },
+        "agradar": {
+          "sources": [
+            "src/hooks/aesa_agradar_hook.lua",
+            "src/native/agradar_probe/aesa_agradar.c"
+          ],
+          "hook": "Scripts/Hooks/aesa_agradar_hook.lua",
+          "dll": "Scripts/AESA-AGR/aesa_agradar.dll",
+          "manifest": "Scripts/AESA-AGR/agr-manifest.json",
+          "dist_dll": "dist/dev/aesa_agradar.dll",
+          "backup_suffix": ".bak-aesa",
+          "log_dir": "Logs/AESA/AGR"
+        },
+        "fc": {
+          "sources": [
+            "src/hooks/aesa_fc_hook.lua",
+            "src/native/fc_probe/aesa_fc.c"
+          ],
+          "hook": "Scripts/Hooks/aesa_fc_hook.lua",
+          "trace_dll": "Scripts/AESA-FC/aesa_fc_trace.dll",
+          "inject_dll": "Scripts/AESA-FC/aesa_fc_inject.dll",
+          "trace_dist_dll": "dist/dev/aesa_fc_trace.dll",
+          "inject_dist_dll": "dist/dev/aesa_fc_inject.dll",
+          "manifest": "Scripts/AESA-FC/fc-manifest.json",
+          "backup_suffix": ".bak-aesa",
+          "experiment_config": "Scripts/AESA-FC/fc_experiment.lua",
+          "log_files": [
+            "Logs/AESA/fc_trace.log",
+            "Logs/AESA/fc_native.log",
+            "Logs/AESA/fc_msl_pos.log"
+          ]
+        }
+      },
+      "native": {
+        "agradar_dll_name": "aesa_agradar.dll",
+        "fc_trace_dll_name": "aesa_fc_trace.dll",
+        "fc_inject_dll_name": "aesa_fc_inject.dll",
+        "fc_log_dir": "%USERPROFILE%/Saved Games/DCS/Logs/AESA"
+      }
+    },
+    "display": {
+      "db": {
+        "step": 0.25,
+        "no_data": -128,
+        "clamp_min": -127,
+        "clamp_max": 48,
+        "floor_db": -40,
+        "peak_norm_default": false,
+        "refs": [
+          "fixed_material",
+          "frame_peak"
+        ],
+        "ref_by_product": {
+          "sar": "frame_peak",
+          "map": "fixed_material",
+          "peak": "frame_peak"
+        }
+      },
+      "mosaic": {
+        "limit": 50,
+        "poll_ms": 700,
+        "fade_min": 0.45,
+        "state_since": true,
+        "image_endpoint": "/image/<seq>",
+        "snapshot_endpoint": "/snapshot"
+      },
+      "sar": {
+        "range": {
+          "min_m": 1000,
+          "max_m": 50000
+        },
+        "side_window": {
+          "min_abs_deg": 20,
+          "max_abs_deg": 160
+        },
+        "default_range_km": 20,
+        "contrast_db_options": [
+          20,
+          30,
+          40
+        ],
+        "contrast_default_db": 40,
+        "map": {
+          "range_m": 20000,
+          "azimuth_deg": 60,
+          "cell_m": 250,
+          "beam_deg": 3,
+          "looks": 4
+        },
+        "dbs": {
+          "sharpens": [
+            8,
+            32
+          ],
+          "default_sharpen": 8,
+          "near_forward_deg": 20
+        },
+        "sweep": {
+          "min_angle_deg": 30,
+          "max_angle_deg": 60,
+          "min_range_m": 1000,
+          "max_range_m": 50000
+        },
+        "colors": {
+          "background": "#090d12",
+          "legend_gradient": [
+            "#19376e",
+            "#46b4a0",
+            "#ead78c"
+          ],
+          "surface": {
+            "land": [
+              125,
+              150,
+              90
+            ],
+            "unknown": [
+              90,
+              90,
+              90
+            ],
+            "water": [
+              25,
+              55,
+              110
+            ],
+            "shallow_water": [
+              70,
+              180,
+              160
+            ],
+            "road": [
+              195,
+              150,
+              80
+            ],
+            "runway": [
+              230,
+              210,
+              175
+            ]
+          }
+        }
+      },
+      "aa": {
+        "kt_per_mps": 1.94384,
+        "nm_per_km": 0.539957,
+        "m_per_nm": 1852,
+        "ft_per_m": 3.28084,
+        "range_scale_nm": [
+          5,
+          10,
+          20,
+          40,
+          80,
+          120,
+          160,
+          200
+        ],
+        "colors": {
+          "grid": "#18242e",
+          "grid_text": "#54707e",
+          "band": "#0d151c",
+          "search": "#2ec8e0",
+          "track": "#ff9a3c",
+          "stt": "#ff5252",
+          "confirmed": "#39d6ff",
+          "tentative": "#ffd24a",
+          "truth": "#8a97a0",
+          "iff_friend": "#4db8ff",
+          "iff_hostile": "#ff5252",
+          "iff_unknown": "#ffd24a"
+        }
+      }
+    }
+  },
+  "known_conflicts": [
+    {
+      "id": "zero_notch_not_configured",
+      "topic": "zero_notch_half_ms 在原核心 physics.lua 中可选、原 config.lua 未配置（现为 core/detection.lua + 生成配置）",
+      "evidence": [
+        "src/core/detection.lua:42-43 treats pe.zero_notch_half_mps <= 0 as disabled",
+        "Gate 2 前旧核心配置（文件已删除）没有 zero_notch_half_ms；现 spec/radar.json 显式写出 zero_notch_half_mps=0.0"
+      ],
+      "resolution": "spec 显式写出 zero_notch_half_mps=0.0，来源标为 code_default；不是新增行为",
+      "spec": "radar.json"
+    },
+    {
+      "id": "gate_accel_margin_unit",
+      "topic": "gate_accel_margin_ms 名称写 ms，实际单位是 m/s（现已改名 gate_accel_margin_mps）",
+      "evidence": [
+        "Gate 2 前旧配置 gate_accel_margin_ms = 300.0（文件已删除）",
+        "docs/conventions.md 曾漏列 gate_accel_margin_ms；现配置键为 tracker.gate_accel_margin_mps"
+      ],
+      "resolution": "spec 改为 gate_accel_margin_mps；数值不变",
+      "spec": "radar.json"
+    },
+    {
+      "id": "map_looks_default",
+      "topic": "MAP 多视默认值在引擎与服务两层不同",
+      "evidence": [
+        "tools/sar_map.cjs:49 DEFAULTS.looks=1",
+        "tools/sar_live.cjs:679 MAP_DEFAULTS.looks=4"
+      ],
+      "resolution": "spec 同时保留 engine_defaults.looks=1 与 service_defaults.looks=4；消费者必须显式传服务默认值，本任务不擅自统一",
+      "spec": "sar.json"
+    },
+    {
+      "id": "map_cells_default",
+      "topic": "MAP 格数默认值在引擎与服务两层不同",
+      "evidence": [
+        "tools/sar_map.cjs:49 DEFAULTS.cells=121",
+        "tools/sar_live.cjs:697 cfg.cells=mapEngine.sectorGrid({range_m,cell_m})（默认 20 km/250 m → 161）"
+      ],
+      "resolution": "spec 保留引擎默认 121，并记录服务端派生规则；不把 121 当成服务默认",
+      "spec": "sar.json"
+    },
+    {
+      "id": "map_serving_defaults_not_passed",
+      "topic": "sar_map 的 looks/cells 默认只在调用方不传时生效",
+      "evidence": [
+        "tools/sar_live.cjs:693-700 显式构造 cfg 后传给 sar_map",
+        "tools/sar_map.cjs:60 cfg={...DEFAULTS,...input}"
+      ],
+      "resolution": "生成配置同时提供 engine_defaults 与 service_defaults，迁移时不得只取一份",
+      "spec": "sar.json"
+    },
+    {
+      "id": "mapgrid_undocumented",
+      "topic": "Export 发送 MAPGRID，但 docs/conventions.md §8.3 的行表没有列出",
+      "evidence": [
+        "src/export/aesa_sar_export.lua:188 sends MAPGRID,<id>,col_x_row_z",
+        "tools/sar_live.cjs:145 accepts MAPGRID",
+        "docs/conventions.md:598-602 lists MAPBEGIN/MAPHEIGHT/... but no MAPGRID"
+      ],
+      "resolution": "spec/protocol.json 记录 MAPGRID 3 字段；文档缺口留给后续文档修订，不改变协议",
+      "spec": "protocol.json"
+    },
+    {
+      "id": "architecture_stale_aa_fields",
+      "topic": "docs/architecture.md §4.2 仍描述 Gate 1 前的 T 行 Country 与 velocity 字段",
+      "evidence": [
+        "docs/architecture.md:336 says T uses coalition/Country/country and obj.velocity/vel",
+        "src/export/aesa_export.lua:83-89 now reads CoalitionID",
+        "src/export/aesa_export.lua:105-108 uses LoGetVectorVelocity"
+      ],
+      "resolution": "以代码与 docs/conventions.md §8.2 为准；本任务不改架构文档，只在 spec 记录冲突",
+      "spec": "protocol.json"
+    },
+    {
+      "id": "aa_p_row_no_max",
+      "topic": "A/A P 行没有显式长度上限",
+      "evidence": [
+        "src/export/aesa_export.lua:129 sends 'P '..probe text",
+        "tools/receiver.py:79-80 accepts kind P with any tail"
+      ],
+      "resolution": "protocol.json 记录 min_fields=2、aa_line_max_chars=null（代码无上限），不发明一个上限",
+      "spec": "protocol.json"
+    },
+    {
+      "id": "js_generated_location",
+      "topic": "JS 生成配置落点：计划写 tools/generated，架构 A-13 推荐 src/shared",
+      "evidence": [
+        "docs/refactor-plan.md:376-377 lists src/shared/config.lua/protocol.lua and tools/generated/config.cjs",
+        "docs/architecture.md:661-669 notes the JS generated location is not final",
+        "docs/architecture.md:887-895 A-13 recommends src/shared/config.cjs",
+        "this task explicitly requires tools/generated/config.cjs"
+      ],
+      "resolution": "Gate 2 按任务要求生成 tools/generated/config.cjs；Gate 5 已迁到 src/shared/config.cjs 并删除旧路径，tools 与测试统一 require 新落点，src/sar_core 不 import tools/",
+      "spec": "deployment.json"
+    },
+    {
+      "id": "fc_backup_suffix",
+      "topic": "FC 安装器复用 SAR 的 .bak-aesa-sar 后缀",
+      "evidence": [
+        "Gate 0–5: scripts/install_fc_probe.cjs 从 install_sar.cjs 复用 backup()",
+        "Gate 6: scripts/install_common.cjs:11 BACKUP_SUFFIX=.bak-aesa"
+      ],
+      "resolution": "Gate 6 已统一为 .bak-aesa（install_common.BACKUP_SUFFIX）；旧 .bak-aesa-sar 备份保留但不再新写",
+      "spec": "deployment.json"
+    },
+    {
+      "id": "scene_backup_suffix",
+      "topic": "场景 Hook 安装器复用 SAR 备份后缀",
+      "evidence": [
+        "Gate 0–5: scripts/install_sar_scene.cjs 从 install_sar.cjs 复用 backup()",
+        "Gate 6: install_sar_scene.cjs 直接 require install_common.cjs"
+      ],
+      "resolution": "Gate 6 已统一为 .bak-aesa；场景 Hook 改用 install_common",
+      "spec": "deployment.json"
+    },
+    {
+      "id": "fc_native_hardcoded_saved_games",
+      "topic": "FC 原生 DLL 硬编码 Saved Games\\DCS，与安装器 --saved-games 可指向 openbeta/临时目录不一致",
+      "evidence": [
+        "src/native/fc_probe/aesa_fc.c:107 getenv USERPROFILE + Saved Games\\DCS\\Logs\\AESA（独立 ctypes 烟测兜底）",
+        "src/hooks/aesa_fc_hook.lua:309 pcall(init,base..\"Logs\\AESA\") 总是传 writedir"
+      ],
+      "resolution": "hook 总是把 writedir 下的 Logs\\AESA 传给 init；原生 getenv 分支只用于独立 ctypes 烟测，不影响 --saved-games 部署",
+      "spec": "deployment.json"
+    },
+    {
+      "id": "db_float_floor_vs_int8_floor",
+      "topic": "-40 dB 浮点下限与 -127 Int8 有效下限不是同一件事",
+      "evidence": [
+        "tools/sar_map.cjs:637-638 clamps float dB to -40",
+        "tools/sar_live.cjs:285 clamps Int8 to -127 while -128 is no data",
+        "docs/conventions.md:523 explains -40 dB quantises to -127, and -127 cannot be read back as -40"
+      ],
+      "resolution": "spec 同时保留 floor_db=-40 与 clamp_min=-127，并记录换算关系；显示层不得从 -127 反推 -40",
+      "spec": "display.json"
+    }
+  ]
+}

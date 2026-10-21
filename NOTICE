@@ -1,0 +1,33 @@
+dcs-aesa — principles-level AESA radar simulation research
+Copyright (c) 2026 aesa contributors
+
+This project is distributed under the MIT License (see LICENSE).
+This NOTICE file is informational only and does not modify those terms.
+
+Third-party open-source components
+----------------------------------
+- minhook (src/native/third_party/minhook/) — "The Minimalistic x86/x64
+  API Hooking Library for Windows", Copyright (C) 2009-2017 Tsuda Kageyu,
+  BSD 2-clause license. See src/native/third_party/minhook/LICENSE.txt.
+
+Independence and trademarks
+---------------------------
+This is an independent, unofficial research project. It is not affiliated
+with, endorsed by, or sponsored by Eagle Dynamics SA or by any other game
+or modification vendor. "DCS World" and all related product and aircraft
+names are trademarks of their respective owners; any use in this
+repository is nominative and descriptive only.
+
+Content policy
+--------------
+This repository does not contain or distribute executable files, media
+assets, or script files taken from any commercial game or third-party
+modification. Interface descriptions, version fingerprints, and parameter
+tables documented here are factual properties of the host environment,
+recorded for interoperability research.
+
+Scope of use
+------------
+The software is provided for single-player, offline research and
+development. Do not use it in multiplayer, competitive, or
+integrity-checked environments.

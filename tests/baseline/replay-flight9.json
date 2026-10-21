@@ -1,0 +1,346 @@
+{
+  "schema": 1,
+  "generated_at": "2026-10-18T12:12:22.388Z",
+  "generator": "scripts/capture_baseline.cjs",
+  "command": "node scripts/capture_baseline.cjs (replay-flight9 step)",
+  "commit": "c5124eae018a4f1cbf0f0e70dda1ddeb713d8bfe",
+  "branch": "codex/sar-airport-mapping",
+  "tag": null,
+  "worktree_dirty": true,
+  "status": "ok",
+  "input": "recordings/flight9.aesarec",
+  "input_bytes": 256078590,
+  "input_sha256": "e94e5913266b40a25078859b4069bca2b3c2b5ba1c5aef421d3b10db01c94f87",
+  "recording": {
+    "total_lines": 3248826,
+    "blank_lines": 0,
+    "line_types": {
+      "V1": 33,
+      "A": 69129,
+      "P": 33,
+      "T": 3179631
+    },
+    "session_count": 33,
+    "sessions": [
+      {
+        "frames": 508,
+        "lines": 29974,
+        "first_t": 0,
+        "last_t": 52.043,
+        "span_s": 52.043
+      },
+      {
+        "frames": 1938,
+        "lines": 117723,
+        "first_t": 0,
+        "last_t": 198.204,
+        "span_s": 198.204
+      },
+      {
+        "frames": 2247,
+        "lines": 134621,
+        "first_t": 0,
+        "last_t": 230.37,
+        "span_s": 230.37
+      },
+      {
+        "frames": 1427,
+        "lines": 84243,
+        "first_t": 0,
+        "last_t": 146.957,
+        "span_s": 146.957
+      },
+      {
+        "frames": 2249,
+        "lines": 134604,
+        "first_t": 0,
+        "last_t": 229.95,
+        "span_s": 229.95
+      },
+      {
+        "frames": 1987,
+        "lines": 121648,
+        "first_t": 0,
+        "last_t": 205.35,
+        "span_s": 205.35
+      },
+      {
+        "frames": 1745,
+        "lines": 105196,
+        "first_t": 0,
+        "last_t": 181.669,
+        "span_s": 181.669
+      },
+      {
+        "frames": 1556,
+        "lines": 92288,
+        "first_t": 0,
+        "last_t": 160.631,
+        "span_s": 160.631
+      },
+      {
+        "frames": 2162,
+        "lines": 129775,
+        "first_t": 0,
+        "last_t": 227.794,
+        "span_s": 227.794
+      },
+      {
+        "frames": 607,
+        "lines": 9714,
+        "first_t": 0,
+        "last_t": 62.821,
+        "span_s": 62.821
+      },
+      {
+        "frames": 2590,
+        "lines": 151074,
+        "first_t": 0,
+        "last_t": 268.996,
+        "span_s": 268.996
+      },
+      {
+        "frames": 4315,
+        "lines": 191922,
+        "first_t": 0,
+        "last_t": 448.733,
+        "span_s": 448.733
+      },
+      {
+        "frames": 4517,
+        "lines": 197021,
+        "first_t": 0,
+        "last_t": 472.056,
+        "span_s": 472.056
+      },
+      {
+        "frames": 4115,
+        "lines": 180873,
+        "first_t": 0,
+        "last_t": 427.335,
+        "span_s": 427.335
+      },
+      {
+        "frames": 1742,
+        "lines": 74665,
+        "first_t": 0,
+        "last_t": 181.212,
+        "span_s": 181.212
+      },
+      {
+        "frames": 245,
+        "lines": 9856,
+        "first_t": 0,
+        "last_t": 25.938,
+        "span_s": 25.938
+      },
+      {
+        "frames": 98,
+        "lines": 3910,
+        "first_t": 0,
+        "last_t": 10.255,
+        "span_s": 10.255
+      },
+      {
+        "frames": 1212,
+        "lines": 50854,
+        "first_t": 0,
+        "last_t": 126.378,
+        "span_s": 126.378
+      },
+      {
+        "frames": 2366,
+        "lines": 98870,
+        "first_t": 0,
+        "last_t": 250.436,
+        "span_s": 250.436
+      },
+      {
+        "frames": 203,
+        "lines": 8528,
+        "first_t": 256.743,
+        "last_t": 277.545,
+        "span_s": 20.802
+      },
+      {
+        "frames": 406,
+        "lines": 16606,
+        "first_t": 0,
+        "last_t": 42.033,
+        "span_s": 42.033
+      },
+      {
+        "frames": 6716,
+        "lines": 281630,
+        "first_t": 0,
+        "last_t": 690.149,
+        "span_s": 690.149
+      },
+      {
+        "frames": 4505,
+        "lines": 185198,
+        "first_t": 0,
+        "last_t": 461.383,
+        "span_s": 461.383
+      },
+      {
+        "frames": 2125,
+        "lines": 89688,
+        "first_t": 0,
+        "last_t": 219.843,
+        "span_s": 219.843
+      },
+      {
+        "frames": 747,
+        "lines": 30930,
+        "first_t": 0,
+        "last_t": 77.788,
+        "span_s": 77.788
+      },
+      {
+        "frames": 4392,
+        "lines": 186256,
+        "first_t": 0,
+        "last_t": 459.382,
+        "span_s": 459.382
+      },
+      {
+        "frames": 1332,
+        "lines": 55504,
+        "first_t": 0,
+        "last_t": 139.433,
+        "span_s": 139.433
+      },
+      {
+        "frames": 1313,
+        "lines": 55151,
+        "first_t": 0,
+        "last_t": 136.598,
+        "span_s": 136.598
+      },
+      {
+        "frames": 5716,
+        "lines": 251774,
+        "first_t": 0,
+        "last_t": 600.53,
+        "span_s": 600.53
+      },
+      {
+        "frames": 1401,
+        "lines": 58878,
+        "first_t": 0,
+        "last_t": 147.056,
+        "span_s": 147.056
+      },
+      {
+        "frames": 524,
+        "lines": 21568,
+        "first_t": 0,
+        "last_t": 55.207,
+        "span_s": 55.207
+      },
+      {
+        "frames": 1418,
+        "lines": 59112,
+        "first_t": 0,
+        "last_t": 149.382,
+        "span_s": 149.382
+      },
+      {
+        "frames": 705,
+        "lines": 29172,
+        "first_t": 0,
+        "last_t": 74.235,
+        "span_s": 74.235
+      }
+    ],
+    "selected_session": {
+      "frames": 6716,
+      "lines": 281630,
+      "first_t": 0,
+      "last_t": 690.149,
+      "span_s": 690.149
+    },
+    "max_session_span_s": 690.149
+  },
+  "replay": {
+    "detections_by_target": {
+      "16786944": 914,
+      "16787200": 79,
+      "16787456": 70,
+      "16787712": 336,
+      "16788224": 225,
+      "16788480": 426,
+      "16788736": 180,
+      "16788992": 705
+    },
+    "duration_s": 690.149,
+    "dwells": 62340,
+    "engine_contacts": 0,
+    "engine_contacts_by_target": {},
+    "frames": 6716,
+    "selected_session": {
+      "duration_s": 690.149,
+      "frames": 6716,
+      "probe": "Bank:number|Coalition:string|CoalitionID:number|Country:number|Flags:table|GroupName:string|Heading:number|LatLongAlt:table|Name:string|Pitch:number|Position:table|PositionAsMatrix:table|Type:table|UnitName:string"
+    },
+    "session_count": 33,
+    "step_s": 0.049999928,
+    "steps": 13803,
+    "tracks": [
+      {
+        "R_km": 130.642823,
+        "az_deg": -14.589222,
+        "confirmed": true,
+        "el_deg": 3.565908,
+        "hits": 543,
+        "id": "6",
+        "vr_mps": -213.073155
+      },
+      {
+        "R_km": 77.135509,
+        "az_deg": 41.749785,
+        "confirmed": true,
+        "el_deg": 1.173838,
+        "hits": 336,
+        "id": "9",
+        "vr_mps": 73.965671
+      },
+      {
+        "R_km": 109.067459,
+        "az_deg": 42.056297,
+        "confirmed": true,
+        "el_deg": 4.272506,
+        "hits": 374,
+        "id": "13",
+        "vr_mps": -148.618575
+      },
+      {
+        "R_km": 48.777039,
+        "az_deg": -51.551061,
+        "confirmed": true,
+        "el_deg": 4.178001,
+        "hits": 453,
+        "id": "15",
+        "vr_mps": -157.205113
+      },
+      {
+        "R_km": 102.669461,
+        "az_deg": -26.594171,
+        "confirmed": true,
+        "el_deg": 4.539295,
+        "hits": 180,
+        "id": "16",
+        "vr_mps": -213.459244
+      }
+    ],
+    "tracks_confirmed": 5,
+    "tracks_total": 5,
+    "wall_ms": 106421.8,
+    "entry": "tools/replay.py run()",
+    "dt": 0.05,
+    "seed": 42,
+    "command": "python tools/replay.py recordings/flight9.aesarec --dt 0.05 --seed 42",
+    "label": "flight9"
+  }
+}

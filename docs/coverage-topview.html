@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><title>AESA 探测覆盖 · 俯视图</title>
+<style>
+  body { margin: 0; background: #07090c; color: #9fb8c4;
+         font: 13px/1.5 "Consolas", "Microsoft YaHei", monospace;
+         display: flex; flex-direction: column; align-items: center; }
+  h1 { font-size: 15px; margin: 14px 0 2px; color: #d7ecf5; font-weight: 600; }
+  .sub { color: #5b7280; margin-bottom: 8px; }
+  canvas { display: block; }
+</style></head>
+<body>
+<h1>AESA 探测覆盖 · 俯视图</h1>
+<div class="sub">σ=5m²，Pd=0.9 ｜ Rmax(θ)=R0·√cosθ（θ=偏离机头角）｜ 俯仰 3 带（-6/0/+6°）为侧视概念，俯视图不体现 ｜ PRF 距离/速度盲区未示 ｜ <a href="coverage-agmti.html" style="color:#2ec8e0">↔ 对地 GMTI 覆盖预测图</a></div>
+<canvas id="c" width="1040" height="880"></canvas>
+<script>
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+const W = 1040, H = 880, ox = W / 2, oy = H - 120;
+const MAXKM = 210, pxkm = (H - 200) / MAXKM;
+const R0 = { search: 128.8, track: 108.3, stt: 113.4, big: 192.6 };
+const COL = { grid: "#18242e", txt: "#54707e", search: "#2ec8e0",
+              track: "#ff9a3c", stt: "#ff5252", big: "#8a97a0", own: "#eafcff" };
+const XY = (azDeg, km) => [ox + Math.sin(azDeg * Math.PI / 180) * km * pxkm,
+                           oy - Math.cos(azDeg * Math.PI / 180) * km * pxkm];
+
+/* 距离环 */
+g.font = "12px Consolas, monospace";
+for (let r = 50; r <= 200; r += 50) {
+  g.strokeStyle = COL.grid; g.beginPath(); g.arc(ox, oy, r * pxkm, 0, 7); g.stroke();
+  g.fillStyle = COL.txt; g.textAlign = "center";
+  g.fillText(r + " km", ox, oy - r * pxkm - 4);
+}
+/* 水平基准线 */
+g.strokeStyle = COL.grid;
+g.beginPath(); g.moveTo(ox, oy); g.lineTo(ox, oy - 200 * pxkm); g.stroke();
+
+/* 采样包络曲线（角度范围 deg，R0 常数）→ path */
+function envelope(a0, a1, r0) {
+  g.beginPath();
+  for (let a = a0; a <= a1; a += 1) {
+    const km = r0 * Math.sqrt(Math.cos(a * Math.PI / 180));
+    const [x, y] = XY(a, km);
+    a === a0 ? g.moveTo(x, y) : g.lineTo(x, y);
+  }
+}
+
+/* 搜索扇区填充：±30°，外缘=搜索包络 */
+g.fillStyle = "rgba(46,200,224,0.10)";
+envelope(-30, 30, R0.search);
+for (let a = 30; a >= -30; a -= 1) { const [x, y] = XY(a, 0); g.lineTo(x, y); }
+g.closePath(); g.fill();
+
+/* 跟踪环带填充：±30~60°，外缘=跟踪包络（仅已确认航迹可到） */
+g.fillStyle = "rgba(255,154,60,0.08)";
+for (const s of [1, -1]) {
+  envelope(s * 30, s * 60, R0.track);
+  for (let a = s * 60; a >= s * 30; a -= s) { const [x, y] = XY(a, 0); g.lineTo(x, y); }
+  g.closePath(); g.fill();
+}
+
+/* 扇区边界线 */
+g.setLineDash([6, 5]); g.strokeStyle = COL.search;
+for (const s of [1, -1]) {
+  const [x, y] = XY(s * 30, R0.search * Math.sqrt(Math.cos(Math.PI / 6)));
+  g.beginPath(); g.moveTo(ox, oy); g.lineTo(x, y); g.stroke();
+}
+g.setLineDash([2, 5]); g.strokeStyle = "#3a4a56";
+for (const s of [1, -1]) {
+  const [x, y] = XY(s * 60, 40);
+  g.beginPath(); g.moveTo(ox, oy); g.lineTo(x, y); g.stroke();
+}
+g.setLineDash([]);
+
+/* 包络曲线 */
+g.lineWidth = 2.2; g.strokeStyle = COL.search; envelope(-30, 30, R0.search); g.stroke();
+g.lineWidth = 1.8; g.strokeStyle = COL.track;  envelope(-60, 60, R0.track); g.stroke();
+g.lineWidth = 1.2; g.strokeStyle = COL.stt;    envelope(-60, 60, R0.stt);   g.stroke();
+g.lineWidth = 1.2; g.setLineDash([7, 5]); g.strokeStyle = COL.big;
+envelope(-30, 30, R0.big); g.stroke(); g.setLineDash([]); g.lineWidth = 1;
+
+/* 标签 */
+function label(az, km, text, col, dx = 0) {
+  const [x, y] = XY(az, km);
+  g.fillStyle = col; g.textAlign = az < 0 ? "right" : (az > 0 ? "left" : "center");
+  g.fillText(text, x + dx, y - 6);
+}
+label(26, R0.search * Math.sqrt(Math.cos(26 * Math.PI / 180)), "搜索包络 ±30°（驻留10ms）129→120km", COL.search, 8);
+label(-44, R0.track * Math.sqrt(Math.cos(44 * Math.PI / 180)), "跟踪回访包络（5ms）108→77km", COL.track, -8);
+label(52, R0.stt * Math.sqrt(Math.cos(52 * Math.PI / 180)), "STT（6ms）113km", COL.stt, 8);
+label(-20, R0.big * Math.sqrt(Math.cos(20 * Math.PI / 180)), "σ=25m²（大型机）搜索参考 193km", COL.big, -8);
+g.fillStyle = COL.txt; g.textAlign = "left";
+g.fillText("搜索扇区：发现新目标", 24, oy - 16);
+g.fillText("±30°~60°：仅已确认航迹", 24, oy - 34);
+
+/* 本机 */
+g.save(); g.translate(ox, oy);
+g.strokeStyle = COL.own; g.lineWidth = 1.6;
+g.beginPath(); g.moveTo(0, -14); g.lineTo(9, 11); g.lineTo(0, 6); g.lineTo(-9, 11);
+g.closePath(); g.stroke(); g.restore();
+g.fillStyle = COL.own; g.textAlign = "center"; g.fillText("本机", ox, oy + 28);
+</script>
+</body></html>

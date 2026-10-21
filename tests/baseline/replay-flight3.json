@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "generated_at": "2026-10-18T12:12:22.388Z",
+  "generator": "scripts/capture_baseline.cjs",
+  "command": "node scripts/capture_baseline.cjs (replay-flight3 step)",
+  "commit": "c5124eae018a4f1cbf0f0e70dda1ddeb713d8bfe",
+  "branch": "codex/sar-airport-mapping",
+  "tag": null,
+  "worktree_dirty": true,
+  "status": "ok",
+  "input": "recordings/flight3-final.aesarec",
+  "input_bytes": 7714864,
+  "input_sha256": "a1fb5b23f657d6e53339f81b0a26a9a6e7a69010de2d3e5deea6564437998973",
+  "recording": {
+    "total_lines": 98040,
+    "blank_lines": 0,
+    "line_types": {
+      "V1": 4,
+      "A": 1617,
+      "P": 4,
+      "T": 96415
+    },
+    "session_count": 4,
+    "sessions": [
+      {
+        "frames": 3,
+        "lines": 182,
+        "first_t": 0,
+        "last_t": 0.2,
+        "span_s": 0.2
+      },
+      {
+        "frames": 3,
+        "lines": 182,
+        "first_t": 0,
+        "last_t": 0.2,
+        "span_s": 0.2
+      },
+      {
+        "frames": 3,
+        "lines": 182,
+        "first_t": 0,
+        "last_t": 0.2,
+        "span_s": 0.2
+      },
+      {
+        "frames": 1608,
+        "lines": 97494,
+        "first_t": 0,
+        "last_t": 168.29,
+        "span_s": 168.29
+      }
+    ],
+    "selected_session": {
+      "frames": 1608,
+      "lines": 97494,
+      "first_t": 0,
+      "last_t": 168.29,
+      "span_s": 168.29
+    },
+    "max_session_span_s": 168.29
+  },
+  "replay": {
+    "detections_by_target": {
+      "16777472": 863,
+      "16777728": 911,
+      "16777984": 562,
+      "16778240": 545,
+      "16778496": 349,
+      "16778752": 349,
+      "16796672": 45,
+      "16796928": 46
+    },
+    "duration_s": 168.29,
+    "dwells": 15828,
+    "engine_contacts": 0,
+    "engine_contacts_by_target": {},
+    "frames": 1608,
+    "selected_session": {
+      "duration_s": 168.29,
+      "frames": 1608,
+      "probe": "Bank:number|Coalition:string|CoalitionID:number|Country:number|Flags:table|GroupName:string|Heading:number|LatLongAlt:table|Name:string|Pitch:number|Position:table|PositionAsMatrix:table|Type:table|UnitName:string"
+    },
+    "session_count": 4,
+    "step_s": 0.049997029,
+    "steps": 3366,
+    "tracks": [
+      {
+        "R_km": 82.747265,
+        "az_deg": -17.977455,
+        "confirmed": true,
+        "el_deg": 0.021676,
+        "hits": 349,
+        "id": "1",
+        "vr_mps": 534.520647
+      },
+      {
+        "R_km": 85.826785,
+        "az_deg": -17.948248,
+        "confirmed": true,
+        "el_deg": 0.014201,
+        "hits": 349,
+        "id": "2",
+        "vr_mps": 543.480407
+      },
+      {
+        "R_km": 23.088248,
+        "az_deg": -15.164737,
+        "confirmed": true,
+        "el_deg": -2.050507,
+        "hits": 863,
+        "id": "3",
+        "vr_mps": 532.266934
+      },
+      {
+        "R_km": 26.600264,
+        "az_deg": -12.79592,
+        "confirmed": true,
+        "el_deg": -0.988811,
+        "hits": 911,
+        "id": "4",
+        "vr_mps": 552.677494
+      },
+      {
+        "R_km": 55.264946,
+        "az_deg": -14.705978,
+        "confirmed": true,
+        "el_deg": 0.03245,
+        "hits": 562,
+        "id": "5",
+        "vr_mps": 539.456931
+      },
+      {
+        "R_km": 58.758396,
+        "az_deg": -14.728509,
+        "confirmed": true,
+        "el_deg": 0.020363,
+        "hits": 545,
+        "id": "6",
+        "vr_mps": 548.407654
+      }
+    ],
+    "tracks_confirmed": 6,
+    "tracks_total": 6,
+    "wall_ms": 14518.9,
+    "entry": "tools/replay.py run()",
+    "dt": 0.05,
+    "seed": 42,
+    "command": "python tools/replay.py recordings/flight3-final.aesarec --dt 0.05 --seed 42",
+    "label": "flight3-final"
+  }
+}

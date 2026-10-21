@@ -1,0 +1,214 @@
+{
+  "build": "2.9.30.28738",
+  "caps": {
+    "BUILD": {
+      "detail": "2.9.30.28738/MT",
+      "state": "ok"
+    },
+    "DAT-RCS": {
+      "detail": "entries=50",
+      "state": "ok"
+    },
+    "DAT-RCS-COV": {
+      "detail": "not observed",
+      "state": "unknown"
+    },
+    "EXP-ACT": {
+      "detail": "passthrough",
+      "state": "ok"
+    },
+    "EXP-AFTER": {
+      "detail": "callback present",
+      "state": "ok"
+    },
+    "EXP-ALT": {
+      "detail": "available; semantics unverified",
+      "state": "degraded"
+    },
+    "EXP-GEO": {
+      "detail": "roundtrip",
+      "state": "ok"
+    },
+    "EXP-LOAD": {
+      "detail": "loaded",
+      "state": "ok"
+    },
+    "EXP-SELF": {
+      "detail": "position+attitude",
+      "state": "ok"
+    },
+    "EXP-TGT": {
+      "detail": "empty:LoGetTargetInformation",
+      "state": "degraded"
+    },
+    "EXP-TIME": {
+      "detail": "1.000",
+      "state": "ok"
+    },
+    "EXP-VEL": {
+      "detail": "vector velocity",
+      "state": "ok"
+    },
+    "EXP-WORLD": {
+      "detail": "objects=59",
+      "state": "ok"
+    },
+    "GFX-PRESET": {
+      "detail": "hash match",
+      "state": "ok"
+    },
+    "GFX-RADARFX": {
+      "detail": "hash match",
+      "state": "ok"
+    },
+    "HOOK-CB": {
+      "detail": "model time + callbacks",
+      "state": "ok"
+    },
+    "IO-LFS": {
+      "detail": "%USERPROFILE%\\Saved Games\\DCS\\",
+      "state": "ok"
+    },
+    "IO-LOADLIB": {
+      "detail": "loadlib",
+      "state": "ok"
+    },
+    "IO-LOG": {
+      "detail": "log.write",
+      "state": "ok"
+    },
+    "IO-SOCK": {
+      "detail": "socket.tcp",
+      "state": "ok"
+    },
+    "LND-SURF": {
+      "detail": "class=1",
+      "state": "ok"
+    },
+    "MAP": {
+      "detail": "not observed",
+      "state": "unknown"
+    },
+    "MODS": {
+      "detail": "not observed",
+      "state": "unknown"
+    },
+    "MODULE": {
+      "detail": "not observed",
+      "state": "unknown"
+    },
+    "MSN-COAL": {
+      "detail": "not-probed-in-hook",
+      "state": "unknown"
+    },
+    "MSN-DOSTRING": {
+      "detail": "table;table;table;nil",
+      "state": "ok"
+    },
+    "MSN-LIFE": {
+      "detail": "not-probed-in-hook",
+      "state": "unknown"
+    },
+    "NAT-AGR-MASK": {
+      "detail": "16/16 expected=16",
+      "state": "ok"
+    },
+    "NAT-AGR-SYM": {
+      "detail": "4/4 expected=4",
+      "state": "ok"
+    },
+    "NAT-AGR-VT": {
+      "detail": "vtable match",
+      "state": "ok"
+    },
+    "NAT-FC-OFF": {
+      "detail": "not observed",
+      "state": "unknown"
+    },
+    "NAT-FC-SITES": {
+      "detail": "not observed",
+      "state": "unknown"
+    },
+    "NAT-FC-SYM": {
+      "detail": "17/17 expected=17",
+      "state": "ok"
+    },
+    "NAT-HASH": {
+      "detail": "module hashes match (8); export digest not measured",
+      "state": "degraded"
+    },
+    "NET-PORT": {
+      "detail": "not observed",
+      "state": "unknown"
+    },
+    "TER-GH": {
+      "detail": "height=148.1",
+      "state": "ok"
+    },
+    "TER-GST": {
+      "detail": "name=land",
+      "state": "ok"
+    },
+    "TER-VIS": {
+      "detail": "same point visible",
+      "state": "ok"
+    },
+    "WLD-SEARCH": {
+      "detail": "visited=305",
+      "state": "ok"
+    }
+  },
+  "diffs": [],
+  "facts": {
+    "build": "2.9.30.28738",
+    "export_callbacks": "activity_next_event=passthrough;after_next_frame=true;loaded=true",
+    "geo_order": "lon,lat",
+    "matrix_algorithm": "fnv1a32",
+    "own_type": "level1=1;level2=1;level3=1;level4=275",
+    "probe_kind": "hook",
+    "probe_matrix_hash": "0982a986",
+    "probe_profile_id": "dcs-2.9.30.28738-mt",
+    "profile_id": "dcs-2.9.30.28738-mt",
+    "profile_source": "generated",
+    "variant": "MT",
+    "world_object_count": "59",
+    "writedir": "%USERPROFILE%\\Saved Games\\DCS\\"
+  },
+  "flaky": [],
+  "generated_at": "2026-10-17T18:39:46.442Z",
+  "level": "B",
+  "matrix_hash": "c42ba6ea",
+  "profile_id": "dcs-2.9.30.28738-mt",
+  "required": [
+    "BUILD",
+    "DAT-RCS",
+    "EXP-AFTER",
+    "EXP-LOAD",
+    "EXP-SELF",
+    "EXP-TIME",
+    "EXP-VEL",
+    "EXP-WORLD",
+    "GFX-RADARFX",
+    "HOOK-CB",
+    "IO-LFS",
+    "IO-LOADLIB",
+    "IO-SOCK",
+    "LND-SURF",
+    "NAT-AGR-SYM",
+    "NAT-AGR-VT",
+    "NAT-FC-SYM",
+    "TER-GH",
+    "TER-GST",
+    "WLD-SEARCH"
+  ],
+  "schema": 1,
+  "sources": [
+    "%USERPROFILE%/Saved Games/DCS/Logs/AESA/AGR/agradar_native.log",
+    "%USERPROFILE%/Saved Games/DCS/Logs/AESA/fc_native.log",
+    "%USERPROFILE%/Saved Games/DCS/Logs/dcs.log",
+    "%USERPROFILE%/Saved Games/DCS/Scripts/AESA/probe-export.log",
+    "%USERPROFILE%/Saved Games/DCS/Scripts/AESA/probe-hook.log",
+    "%USERPROFILE%/Saved Games/DCS/Scripts/Export.lua"
+  ],
+  "variant": "MT"
+}

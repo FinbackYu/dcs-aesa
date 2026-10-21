@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "owner": "physics",
+  "constants": {
+    "c_mps": 299792458.0,
+    "boltzmann_j_per_k": 1.380649e-23,
+    "t0_k": 290.0,
+    "earth_radius_m": 6371000.0,
+    "earth_k": 1.3333333333333333
+  },
+  "sources": {
+    "constants.c_mps": {
+      "file": "src/core/constants.lua",
+      "line": 27,
+      "class": "public_constant",
+      "note": "真空光速，精确值"
+    },
+    "constants.boltzmann_j_per_k": {
+      "file": "src/core/constants.lua",
+      "line": 27,
+      "class": "public_constant",
+      "note": "玻尔兹曼常数（2019 SI 定义值）"
+    },
+    "constants.t0_k": {
+      "file": "src/core/constants.lua",
+      "line": 27,
+      "class": "assumption",
+      "note": "参考噪声温度 290 K（项目设定）"
+    },
+    "constants.earth_radius_m": {
+      "file": "spec/physics.json",
+      "line": 32,
+      "class": "public_constant",
+      "note": "地球平均半径；A/A 球面视距使用"
+    },
+    "constants.earth_k": {
+      "file": "spec/physics.json",
+      "line": 33,
+      "class": "assumption",
+      "note": "标准折射有效地球半径系数 4/3；不是实时气象"
+    }
+  },
+  "known_conflicts": []
+}

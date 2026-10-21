@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><title>AESA · A/G(GMTI) 探测覆盖预测 · 俯视图</title>
+<style>
+  body { margin: 0; background: #07090c; color: #9fb8c4;
+         font: 13px/1.5 "Consolas", "Microsoft YaHei", monospace;
+         display: flex; flex-direction: column; align-items: center; }
+  h1 { font-size: 15px; margin: 14px 0 2px; color: #d7ecf5; font-weight: 600; }
+  .sub { color: #5b7280; margin-bottom: 6px; }
+  .sub a { color: #2ec8e0; }
+  #ctl { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 4px 0 8px;
+         padding: 8px 14px; border: 1px solid #18242e; border-radius: 4px; }
+  #ctl label { color: #7f9aa8; }
+  #ctl input[type=range] { vertical-align: middle; width: 130px; }
+  #ctl button { background: #0d151c; color: #9fb8c4; border: 1px solid #24384a;
+                border-radius: 3px; padding: 2px 10px; cursor: pointer; font: inherit; }
+  #ctl button.on { background: #12333f; color: #eafcff; border-color: #2ec8e0; }
+  #readout { color: #d7ecf5; margin-bottom: 8px; min-height: 20px; }
+  canvas { display: block; }
+  .notes { max-width: 1040px; color: #7f9aa8; margin: 10px 0 30px; }
+  .notes b { color: #b8d4de; }
+</style></head>
+<body>
+<h1>AESA · A/G(GMTI) 探测覆盖预测 · 俯视图（速度矢量朝上）</h1>
+<div class="sub">不参照任何外部截图，全部由本项目参数推导：<a href="coverage-topview.html">↔ 空对空覆盖图</a></div>
+
+<div id="ctl">
+  <span><label>本机速度 <b id="v_val">200</b> m/s</label>
+    <input type="range" id="v" min="50" max="450" step="10" value="200"></span>
+  <span><label>高度 <b id="h_val">5000</b> m</label>
+    <input type="range" id="h" min="1000" max="12000" step="500" value="5000"></span>
+  <span><label>杂波实用上限 <b id="cap_val">50</b> km【假设】</label>
+    <input type="range" id="cap" min="20" max="120" step="5" value="50"></span>
+  <span><label>处理凹口半宽 <b id="w_val">5</b> m/s【假设】</label>
+    <input type="range" id="w" min="2" max="15" step="1" value="5"></span>
+  <span id="classes">
+    <button data-u="5">履带 5 m/s</button>
+    <button data-u="10">越野 10 m/s</button>
+    <button data-u="15" class="on">轮式 15 m/s</button>
+    <button data-u="20">快速 20 m/s</button>
+  </span>
+  <span><label>SAR 成像距离上限 <b id="rs_val">70</b> km【假设】</label>
+    <input type="range" id="rs" min="20" max="120" step="5" value="70"></span>
+  <span><label>SAR 孔径能力 R₀′ <b id="r0_val">53</b> km【假设 T=2s,δ=2m】</label>
+    <input type="range" id="r0" min="20" max="120" step="3" value="53"></span>
+  <span><label>缝机制
+    <select id="slit">
+      <option value="res">分辨率走廊（抛物线）</option>
+      <option value="amb">左右模糊（窄角缝）</option>
+    </select></label></span>
+  <span><label><input type="checkbox" id="demo"> 叠加「推测的 SAR 成像覆盖轮廓」</label></span>
+</div>
+<div id="readout"></div>
+<canvas id="c" width="1040" height="860"></canvas>
+
+<div class="notes">
+<b>为什么形状不规则：</b>空对空（抬头看）背景是干净天空，覆盖只由一条平滑的
+SNR×扫描损失包络（R₀·√cosθ）决定；对地 GMTI 的背景是整块地面强杂波，
+杂波多普勒随方位变化（fd ∝ v·cosα），所以“目标速度能否从杂波里分出来”
+随方位 α 变化 —— MDV(α) = v·sinα·θ₃ + w。几条边界相乘（扫描锥 ±60°、
+近距盲盘 h/tan60°、杂波实用上限、MDV 扇形、PRF 盲速带）就得到不规则形状。<br>
+<b>与真实 F-35 显示的区别：</b>我们的第一性原理预测里<b>机头中心线是 MDV 最低、
+慢速目标最容易被发现的方向</b>（sinα=0 处主瓣杂波谱最窄）；
+正前方不存在角度盲缝。任何外观上的“中缝”要么是显示符号（基准线），
+要么来自具体系统的处理/场景假设，我们的模型不猜。
+勾选叠加层可看到<b>两直边+前视走廊+双兔耳</b>的物理分解：
+直边=方位扫描角限（与我们的锥边同源）；中缝=<b>前视分辨率走廊</b>——横向分辨
+δcr=λR/(2·v·T·sinα) ≤ δ 要求 sinα ≥ R/R₀′（R₀′=2vTδ/λ），走廊边缘是过本机的
+抛物线 y=R²/R₀′：<b>近处贴着中线、远处逐渐张开</b>（与视频中"近处极窄、远处变宽"
+的观察一致），且 α→0 处还存在左右模糊；兔耳=min(成像距离上限×√cosα, R₀′·sinα)
+与近盘围成的闭合区。真实显示在此之上还叠加<b>地形遮挡</b>（逐方位按地形高程算
+视线，山脊投出楔形阴影）和按方位离散采样连线的分面感——那才是锯齿/不对称的来源，
+需要 DEM 数据才能复现。<br>
+<b>为什么本页推测轮廓与截图仍有差异：</b>SAR 成像可用区不是“探测包络”问题。
+探测只要回波高于噪声（单边界，R∝√cosθ）；成像要求每个分辨单元的图像质量
+（信杂比/聚焦/积累时间），且同时受<b>前视斜视角走廊（sinα≥R/R₀′，近窄远宽）、
+成像距离上限（远小于探测距离）、擦地角与俯角</b>多约束交集——交出来是两个自身
+闭合的“兔耳”，随高度/姿态变化。早期版本误用 183 km 探测包络当外缘、又用固定
+±15° 直锥画缝，均已改为物理推导形式：走廊为抛物线、外缘=min(上限×√cosα, R₀′·sinα)。
+两个滑杆（上限默认 70 km、R₀′ 默认 53 km=T=2s/δ=2m）均为假设值。<br>
+<b>缝的两种候选机制（形状不同，可下拉切换对照）：</b>A 聚束/定长孔径时间——
+δcr=λR/(2vT·sinα)≤δ ⇒ sinα≥R/R₀′ 抛物线走廊，缝随距离二次张开、远处占满前方；
+B 条带/波束驻留限孔径——合成观察角变化≈波束宽、分辨率≈L/2 与距离无关，缝来自
+<b>左右模糊</b>：直线飞行时多普勒对±横向位置为偶函数（fd∝cosα 左右对称），
+只能靠波束单侧照射消歧 ⇒ 缝半宽≈波束宽（±3~5°）的窄楔形，近处贴线、远处以
+绝对宽度张开。若视频中缝保持很窄、耳朵在缝边附近最高并向锥边回收
+（高斜视多普勒带宽↑→PRF↑→不模糊距离↓，按 90km@30°【假设】建模），
+则更像机制 B。两者都属推测，未经官方资料验证。<br>
+<b>后记（2026-09-28，线索级）：</b>外部资料指向该轮廓为 <b>SAR 对地成像可用/较佳区
+边界（俗称“兔耳朵”rabbit ears）</b>，非常规理解的对空探测范围：F-16.net 2010 年帖子
+（f=22&amp;t=14474）中一位亲历模拟机者称其为“APG-81 可进行 SAR 测绘的区域，随高度和
+姿态变化”，另一回复者称“rabbit ears=SAR 图像质量较好的区域”；2016 年帖子
+（f=22&amp;t=29126）配图可见同款绿色轮廓。中央缺口与桑迪亚国家实验室对常规 SAR
+正前/正后横向分辨限制的说明一致（合成孔径依赖飞行中观察角变化，径直逼近时横向
+角变化→0）。<b>未获官方符号手册，属线索级结论。</b>它也解释了“切 A/A 页不变”：
+页面格式≠传感器状态——A/G 传感器的可用区叠加层跨页面保留（AESA 可交错任务），
+且随高度/姿态变化说明是几何计算而非静态贴图。中央缺口有物理与资料双重支撑，
+可保留；<b>外缘量程与孔径能力参数（T、δ）为假设，未经资料验证</b>，
+不得用于判断真实量程或盲角。<br>
+<b>当前引擎做 A/G 还缺：</b>①地杂波背景 σ⁰×波束脚印（SCR 判据，代替纯噪声雷达方程）；
+②GMTI 波形（LPRF+窄多普勒滤波或 DPCA；现有 LPRF 2kHz 的盲速间隔 λ·PRF/2=30 m/s 会把
+车辆速度折叠，需 3-PRF 轮换解模糊）；③对地俯仰程序（现有 −6/0/+6° 是空中条带；
+覆盖 3~50 km 地距需要 6°~60° 多档俯角）；④地面慢速目标跟踪器（道路约束/低动力学模型）。
+</div>
+
+<script>
+const cv = document.getElementById("c"), g = cv.getContext("2d");
+const W = 1040, H = 860, ox = W / 2, oy = H / 2;
+const MAXKM = 140, pxkm = (Math.min(W, H) / 2 - 55) / MAXKM;
+const LAMBDA = 0.03, TH3 = 3 * Math.PI / 180, CONE = 60 * Math.PI / 180;
+const R_NOISE = 182.6;  // σ=20m² 卡车, Td=10ms, Pd=0.9 噪声受限包络【推导】
+const COL = { grid:"#18242e", txt:"#54707e", good:"#37e08c", cap:"#ff5252",
+              egg:"#8a97a0", own:"#eafcff", cone:"#3a4a56" };
+const XY = (az, km) => [ox + Math.sin(az) * km * pxkm,
+                        oy - Math.cos(az) * km * pxkm];
+const S = { v:200, h:5000, cap:50, w:5, u:15, rs:70, r0:53, slit:"res", demo:false };
+
+function mdv(az) { return S.v * Math.abs(Math.sin(az)) * TH3 + S.w; }
+function heat(m0, m1) {  // MDV 低=好(青) 高=差(红)
+  const t = Math.max(0, Math.min(1, m0 / m1));
+  const r = Math.round(46 + t * 209), gr = Math.round(200 - t * 145),
+        b = Math.round(224 - t * 165);
+  return `rgba(${r},${gr},${b},0.30)`;
+}
+
+function draw() {
+  g.clearRect(0, 0, W, H);
+  g.font = "12px Consolas, monospace";
+  const discKM = S.h / 1000 / Math.tan(Math.PI / 3);   // h/tan60°
+
+  /* 距离环 */
+  for (let r = 25; r <= 125; r += 25) {
+    g.strokeStyle = COL.grid; g.beginPath(); g.arc(ox, oy, r * pxkm, 0, 7); g.stroke();
+    g.fillStyle = COL.txt; g.textAlign = "center"; g.fillText(r + " km", ox, oy - r * pxkm - 4);
+  }
+
+  /* 电扫锥边界 ±60° */
+  g.setLineDash([6, 5]); g.strokeStyle = COL.cone;
+  for (const s of [1, -1]) {
+    const [x, y] = XY(s * CONE, MAXKM);
+    g.beginPath(); g.moveTo(ox, oy); g.lineTo(x, y); g.stroke();
+  }
+  g.setLineDash([]);
+
+  /* 噪声受限包络（参考，实际达不到） */
+  g.setLineDash([2, 6]); g.strokeStyle = COL.egg; g.lineWidth = 1.2; g.beginPath();
+  for (let a = -60; a <= 60; a += 1) {
+    const km = R_NOISE * Math.sqrt(Math.cos(a * Math.PI / 180));
+    const [x, y] = XY(a * Math.PI / 180, Math.min(km, MAXKM * 0.98));
+    a === -60 ? g.moveTo(x, y) : g.lineTo(x, y);
+  }
+  g.stroke(); g.setLineDash([]);
+
+  /* MDV 热度扇形环带（近盘→杂波上限） */
+  const mMax = mdv(CONE);
+  for (let d = -60; d < 60; d += 2) {
+    const a0 = d * Math.PI / 180, a1 = (d + 2) * Math.PI / 180;
+    g.fillStyle = heat(mdv((a0 + a1) / 2) - S.w, mMax - S.w);
+    g.beginPath();
+    let [x, y] = XY(a0, discKM); g.moveTo(x, y);
+    [x, y] = XY(a0, S.cap); g.lineTo(x, y);
+    g.arc(ox, oy, S.cap * pxkm, -a0 - Math.PI / 2, -a1 - Math.PI / 2, true);
+    [x, y] = XY(a1, discKM); g.lineTo(x, y);
+    g.arc(ox, oy, discKM * pxkm, -a1 - Math.PI / 2, -a0 - Math.PI / 2, false);
+    g.closePath(); g.fill();
+  }
+
+  /* 选中类别可见扇区：u ≥ MDV(α) ⇔ |sinα| ≤ (u−w)/(v·θ3) */
+  const q = (S.u - S.w) / (S.v * TH3);
+  const fanHalf = Math.min(Math.asin(Math.max(0, Math.min(1, q))), CONE);
+  if (fanHalf > 0.01) {
+    g.fillStyle = "rgba(55,224,140,0.22)";
+    g.beginPath(); g.moveTo(ox, oy);
+    g.arc(ox, oy, S.cap * pxkm, -Math.PI / 2 - fanHalf, -Math.PI / 2 + fanHalf);
+    g.closePath(); g.fill();
+    g.strokeStyle = COL.good; g.lineWidth = 2.2;
+    for (const s of [1, -1]) {
+      const [x, y] = XY(s * fanHalf, S.cap);
+      g.beginPath(); g.moveTo(ox, oy); g.lineTo(x, y); g.stroke();
+    }
+    g.lineWidth = 1;
+  }
+
+  /* 杂波实用上限弧 */
+  g.strokeStyle = COL.cap; g.lineWidth = 2.4; g.setLineDash([8, 5]); g.beginPath();
+  g.arc(ox, oy, S.cap * pxkm, -Math.PI / 2 - CONE, -Math.PI / 2 + CONE);
+  g.stroke(); g.setLineDash([]); g.lineWidth = 1;
+
+  /* 近距盲盘（俯角极限） */
+  const dR = Math.max(discKM * pxkm, 6);
+  g.fillStyle = "rgba(255,82,82,0.45)";
+  g.beginPath(); g.arc(ox, oy, dR, 0, 7); g.fill();
+  g.strokeStyle = COL.cap; g.lineWidth = 2;
+  g.beginPath(); g.arc(ox, oy, dR, 0, 7); g.stroke(); g.lineWidth = 1;
+  g.setLineDash([3, 3]); g.strokeStyle = COL.cap;
+  g.beginPath(); g.moveTo(ox + dR * 0.7, oy + dR * 0.7); g.lineTo(ox + 58, oy + 58); g.stroke();
+  g.setLineDash([]);
+
+  /* 任意方位的瞬时凹口示例：目标航向 ⊥ 视线 */
+  {
+    const a = 45 * Math.PI / 180, R = S.cap * 0.78;
+    const [x, y] = XY(a, R);
+    g.fillStyle = "#ff9a3c"; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+    g.setLineDash([4, 4]); g.strokeStyle = "#ff9a3c";
+    const L = 34;  // 视线的垂线方向（正切向）
+    g.beginPath(); g.moveTo(x - L * Math.cos(a), y - L * Math.sin(a));
+    g.lineTo(x + L * Math.cos(a), y + L * Math.sin(a)); g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = "#ff9a3c"; g.textAlign = "left";
+    g.fillText("目标航向⊥视线 → 瞬时落入杂波凹口", x + 8, y + 16);
+  }
+
+  /* 标签 */
+  g.fillStyle = COL.cap; g.textAlign = "left";
+  const [lx, ly] = XY(38 * Math.PI / 180, S.cap);
+  g.fillText("杂波实用上限【假设】", lx + 6, ly + 4);
+  g.fillStyle = COL.egg; g.textAlign = "left";
+  const [ex, ey] = XY(-59 * Math.PI / 180, 92);
+  g.fillText("噪声受限包络 σ=20m² 183km", ex - 6, ey);
+  g.fillStyle = "#d7ecf5";
+  g.fillText(`近距盲盘 h/tan60° = ${discKM.toFixed(1)} km（正下方俯角超锥）`, ox + 62, oy + 62);
+  g.fillStyle = COL.cone; g.textAlign = "center";
+  g.fillText("电扫锥极限 ±60°", ox, oy - MAXKM * pxkm + 34);
+  if (fanHalf > 0.01) {
+    g.fillStyle = COL.good; g.textAlign = "center";
+    const deg = Math.round(fanHalf * 180 / Math.PI);
+    const full = q >= Math.sin(CONE);
+    g.fillText(full ? `u=${S.u}m/s：全锥可见（MDV 不构成限制）`
+                    : `u=${S.u}m/s 可见扇区 ±${deg}°（机头走廊）`, ox, oy - S.cap * pxkm * 0.62);
+  }
+
+  /* 推测的 SAR 成像覆盖轮廓（"兔耳朵"）＝多约束交集。
+     缝机制 A（res，聚束/定长CPI）：δcr=λR/(2vT·sinα)≤δ ⇒ sinα≥R/R₀′，
+     走廊边缘为抛物线 y=R²/R₀′，随距离二次张开。
+     缝机制 B（amb，条带/波束驻留限孔径）：合成观察角变化≈波束宽，分辨率≈L/2
+     与距离无关；缝来自左右模糊——直线飞行时多普勒对±横向位置为偶函数，
+     只能靠波束单侧照射消歧 ⇒ 缝半宽≈波束宽的窄楔形。
+     耳外缘：B 机制加高斜视角回收（多普勒带宽↑→PRF↑→不模糊距离∝1/sinα，
+     90km@30°【假设】）；A 机制为 R₀′·sinα。上限×√cosα 两机制共用。 */
+  if (S.demo) {
+    const dR = Math.max(discKM * pxkm, 6);
+    const AMB = 4 * Math.PI / 180;   // 窄缝半角【假设≈波束宽3°】
+    const rmax = S.slit === "amb"
+      ? a => Math.min(S.rs * Math.sqrt(Math.cos(a)), 45 / Math.max(Math.sin(a), 0.05))
+      : a => Math.min(S.rs * Math.sqrt(Math.cos(a)), S.r0 * Math.sin(a));
+    const aLo = S.slit === "amb" ? AMB : Math.asin(Math.min(0.999, discKM / S.r0));
+    for (const s of [1, -1]) {
+      let started = false;
+      g.beginPath();
+      for (let d = Math.round(aLo * 180 / Math.PI); d <= 60; d += 1) {
+        const a = d * Math.PI / 180, km = rmax(a);
+        if (km > discKM + 0.5) {
+          const [x, y] = XY(s * a, km);
+          started ? g.lineTo(x, y) : g.moveTo(x, y);
+          started = true;
+        }
+      }
+      if (!started) continue;
+      let [x, y] = XY(s * CONE, discKM); g.lineTo(x, y);
+      g.arc(ox, oy, dR, s * CONE - Math.PI / 2, s * aLo - Math.PI / 2, s > 0);
+      g.closePath();
+      g.fillStyle = "rgba(234,252,255,0.07)"; g.fill();
+      g.strokeStyle = "#eafcff"; g.lineWidth = 2.4; g.stroke();
+    }
+    g.lineWidth = 1; g.fillStyle = "#eafcff"; g.textAlign = "center";
+    const [lx2, ly2] = XY(0, Math.min(S.slit === "amb" ? S.rs : S.r0, MAXKM * 0.95));
+    if (S.slit === "amb") {
+      g.fillText("左右模糊窄缝 ±4°【≈波束宽】", ox, ly2 + 16);
+      g.fillStyle = "#8a97a0";
+      g.fillText("（高斜视 PRF 回收 90km@30° 为假设；边界未经资料验证）", ox, ly2 + 32);
+    } else {
+      g.fillText("前视分辨率走廊：sinα ≥ R/R₀′（近窄远宽）", ox, ly2 + 16);
+      g.fillStyle = "#8a97a0";
+      g.fillText("（R₀′=2vT·δ/λ，T/δ 为假设；边界未经资料验证）", ox, ly2 + 32);
+    }
+    for (const s of [1, -1]) {
+      const am = (S.slit === "amb" ? 26 : 42) * Math.PI / 180;
+      const [px, py] = XY(s * am, rmax(am) * 0.55);
+      g.fillStyle = "#eafcff";
+      g.fillText("较佳成像区（兔耳）", px, py);
+      g.fillText(S.slit === "amb" ? "缝边最高，向锥边回收" : "min(距离上限, R₀′·sinα)", px, py + 14);
+    }
+  }
+
+  /* 本机（速度矢量朝上） */
+  g.save(); g.translate(ox, oy);
+  g.strokeStyle = COL.own; g.lineWidth = 1.6;
+  g.beginPath(); g.moveTo(0, -12); g.lineTo(8, 10); g.lineTo(0, 5); g.lineTo(-8, 10);
+  g.closePath(); g.stroke();
+  g.beginPath(); g.moveTo(0, -18); g.lineTo(0, -34); g.stroke(); g.restore();
+  g.fillStyle = COL.own; g.textAlign = "center";
+  g.fillText("本机·速度矢量↑", ox, oy + 34);
+
+  /* 图例 */
+  g.textAlign = "left";
+  const leg = [["MDV 低（慢目标可检出）", "rgba(46,200,224,0.55)"],
+               ["MDV 高（需更快目标）", "rgba(255,107,59,0.55)"],
+               [`选中类别可探测扇区`, COL.good],
+               ["杂波实用上限/近距盲盘", COL.cap],
+               ["噪声受限包络（达不到）", COL.egg]];
+  leg.forEach((e, i) => {
+    g.fillStyle = e[1]; g.fillRect(16, 18 + i * 18, 22, 10);
+    g.fillStyle = "#9fb8c4"; g.fillText(e[0], 46, 27 + i * 18);
+  });
+
+  /* 读出行 */
+  const e60 = mdv(CONE);
+  document.getElementById("readout").textContent =
+    `MDV：中心线 ${S.w} m/s → ±60°锥边 ${e60.toFixed(1)} m/s ｜ ` +
+    `u=${S.u} m/s 可见${q >= Math.sin(CONE) ? "全锥" : "±" + Math.round(fanHalf * 180 / Math.PI) + "°"} ｜ ` +
+    `近盘 ${discKM.toFixed(1)} km ｜ 杂波多普勒满谱 ±${(2 * S.v / LAMBDA / 1000).toFixed(0)} kHz`;
+}
+
+for (const id of ["v", "h", "cap", "w", "rs", "r0"]) {
+  const el = document.getElementById(id);
+  el.addEventListener("input", () => {
+    S[id] = +el.value;
+    document.getElementById(id + "_val").textContent = el.value;
+    draw();
+  });
+}
+document.getElementById("classes").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#classes button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); S.u = +b.dataset.u; draw();
+});
+document.getElementById("demo").addEventListener("change", (ev) => {
+  S.demo = ev.target.checked; draw();
+});
+document.getElementById("slit").addEventListener("change", (ev) => {
+  S.slit = ev.target.value; draw();
+});
+draw();
+</script>
+</body></html>

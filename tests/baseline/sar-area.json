@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "generated_at": "2026-10-18T12:12:22.388Z",
+  "generator": "scripts/capture_baseline.cjs",
+  "command": "node scripts/capture_baseline.cjs (sar-area step)",
+  "commit": "c5124eae018a4f1cbf0f0e70dda1ddeb713d8bfe",
+  "branch": "codex/sar-airport-mapping",
+  "tag": null,
+  "worktree_dirty": true,
+  "status": "ok",
+  "label": "area",
+  "footprint": "area",
+  "input": "recordings/sar/sar-1790875325239-1.json",
+  "input_bytes": 58587,
+  "input_sha256": "308b54513f73d87786806595d049a80c0895102e5e4116f4559910250f42cc4e",
+  "scene": {
+    "source": "dcs",
+    "size_m": 512,
+    "grid_n": 33,
+    "terrain_points": 1089,
+    "trajectory_poses": 16,
+    "duration_s": 2,
+    "bearing_deg": 45,
+    "declared_footprint": "area",
+    "target": null
+  },
+  "processing": {
+    "window": "hann",
+    "footprint": "area",
+    "scatterSpacing": 4,
+    "width": 129,
+    "bandwidth": 37500000,
+    "sceneModel": "classified"
+  },
+  "image": {
+    "width": 129,
+    "size_m": 512,
+    "pixels": 16641,
+    "dB": {
+      "pixels": 16641,
+      "finite_pixels": 16641,
+      "min_db": -40,
+      "max_db": 0,
+      "range_db": 40,
+      "mean_db": -15.228603,
+      "p01_db": -40,
+      "p50_db": -13.207495,
+      "p99_db": -3.712738
+    },
+    "width_matches_options": true,
+    "bandwidth_matches_options": true,
+    "compute_ms": 35420.5676,
+    "wall_ms": 35421
+  },
+  "metadata": {
+    "engine": "scene-v3",
+    "focuser": "backprojection",
+    "quality": "standard",
+    "scene_model": "classified",
+    "window": "hann",
+    "range_interpolation": "cubic",
+    "lambda_m": 0.03,
+    "bandwidth_hz": 37500000,
+    "scatter_spacing_m": 4,
+    "scatter_seed": 20261001,
+    "scatterers": 16383,
+    "poses": 16,
+    "duration_s": 2,
+    "simulated_pulses": 823,
+    "terrain_spacing_m": 16,
+    "image_step_m": 4,
+    "shadow": true,
+    "shadowed_scatterers": 0,
+    "shadowed_terrain": 0,
+    "shadowed_objects": 0,
+    "model": "world-anchored jittered point samples of assumed surface; exact path; normalized power"
+  },
+  "point_response": {
+    "entry": "scripts/sar_quality_probe.cjs pointQuality()",
+    "window": "hann",
+    "profiles": {
+      "cross": {
+        "fwhm_m": 1.2246585666329806,
+        "peak_offset_m": 0,
+        "first_nulls_m": [
+          -1.7,
+          1.7
+        ],
+        "pslr_db": -31.4461472951283,
+        "islr_1d_db": -32.84442934096581,
+        "profile_extent_m": [
+          -12,
+          12
+        ],
+        "step_m": 0.009999999999999787
+      },
+      "ground": {
+        "fwhm_m": 5.741121356853161,
+        "peak_offset_m": 0,
+        "first_nulls_m": [
+          -8.15,
+          8.15
+        ],
+        "pslr_db": -33.00277099862058,
+        "islr_1d_db": -34.94814906682902,
+        "profile_extent_m": [
+          -12,
+          12
+        ],
+        "step_m": 0.009999999999999787
+      }
+    },
+    "analytic_rect": {
+      "cross_fwhm_m": 0.7395335339832,
+      "ground_fwhm_m": 3.6097160871811558
+    },
+    "limits": "1D cuts, finite +/-12 m extent, ideal single point; not terrain/material or calibrated radar performance",
+    "basis": "独立理想平地 + 单点散射；1D 截面 ±12 m、步长 0.01 m；不是本次真实地形的分辨率",
+    "wall_ms": 57
+  },
+  "wall_ms": 35478
+}
