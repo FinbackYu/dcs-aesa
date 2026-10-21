@@ -1,5 +1,7 @@
 # aesa — DCS 原理级有源相控阵雷达仿真
 
+[![audit](https://github.com/FinbackYu/dcs-aesa/actions/workflows/audit.yml/badge.svg?branch=master)](https://github.com/FinbackYu/dcs-aesa/actions/workflows/audit.yml?query=branch%3Amaster)
+
 在**不改 DCS World 引擎雷达内核**的前提下，自建一套从物理与调度原理出发的 AESA（有源相控阵）雷达仿真核心，并以官方 F-16C 为宿主机分阶段接入 DCS。
 
 ## 这是什么、不是什么

@@ -3,6 +3,8 @@ name: audit
 on:
   pull_request:
     branches: [master]
+  push:
+    branches: [master]
 
 permissions:
   contents: read
@@ -25,6 +27,7 @@ jobs:
 
       # 同一份词表扫 PR 标题/正文（squash 合并的提交信息来自这里）。
       - name: scan PR text
+        if: github.event_name == 'pull_request'
         shell: pwsh
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
