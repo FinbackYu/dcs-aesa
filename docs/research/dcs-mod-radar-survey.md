@@ -364,7 +364,7 @@ A/A 雷达同样值得参考（手册 p.311–312 起）：帧存储以扫描帧
 - **Lua 侧只是"控制器+图元"**：`indication_page.lua` 为最多 900 个接触点各建四边形，接 `element_params`/`controllers` 由引擎推着动（`move_left_right_using_parameter`(方位)/`move_up_down_using_parameter`(距离)/`parameter_in_range`(航迹寿命 5 s 淡出)/`change_color_when_parameter_equal_to_number`(FRIENDLY 变绿)），见 VSN `avRadar/Indicator/indication_page.lua:110-144`。
 - 更新循环：`make_default_activity(update_time_step)` + `update()`。VSN 用 1/60 s，A-6E 用 1/50 s。
 - 扫描锥/距离门参数（`perfomance` 表）：`scan_volume_azimuth`（±60°）、`scan_volume_elevation`、`scan_beam`（单条波束高度；小于 volume 高度时自动多行扫描）、`tracking_azimuth/elevation`、`roll/pitch_compensation_limits`、`max_available_distance`（**只给"大 RCS 目标"的最大距离标量**，小 RCS 由引擎内部衰减）、`dead_zone`、`ground_clutter = {sea/land/artificial = {A,B,C}, rays_density, max_distance}`（杂波点 RCS = `A + B*random + C*random`）。`scan_speed`、`dead_zone`、`RADAR_BIT`、`ACQUSITION_ZONE_VOLUME_AZIMUTH` 等官方文档标注 "unknown/无效"。
-- A-6E 的中文逆向注释是很好的旁证（`Radar_init.lua`）："扫描区间为5deg，扫描周期为41/50 s"（≈0.82 s）、"`scan_speed` 无效参数"——作者是实测引擎扫描时序反推参数的。
+- A-6E 的中文注释是很好的旁证（`Radar_init.lua`）："扫描区间为5deg，扫描周期为41/50 s"（≈0.82 s）、"`scan_speed` 无效参数"——作者是实测引擎扫描时序反推参数的。
 - 注意：VSN 的 AI 侧传感器用 F-5E 预设（`Sensors = { RADAR = "AN/APQ-159", RWR = "Abstract RWR" }`）——"玩家雷达"和"AI 雷达模型"是两套东西。
 
 天花板：RWS+STT，检测黑箱，拿不到逐目标 RCS/Pd。但其参数集合（扫描体积/波束/杂波系数/最小距离）就是 ED 官方雷达模型的数据维度，可作我们参数命名与量级的参照。
@@ -427,7 +427,7 @@ C++ 雷达（更新的一代）：
 
 1. **接口天花板已探明，自研是唯一出路**：avSimpleRadar 无 TWS 航迹文件、无 RCS 曲线、无 Pd；我们做的原理级 AESA/SAR 在生态里没有对标物——差异化价值高，但也意味着没有现成参考实现。对外兼容其参数命名/量级，对内自建 RCS/SNR/Pd 与航迹管理。
 2. **地形真值两条现成通道可用于 MAP/条带**：Lua 侧 `require('terrain')` 的 `isVisible/GetHeight/GetSurfaceType`；C++ 侧 `worldgeneral.dll` 的 `globalLand`。"射线求交→坡度/材质反射率→脉宽涂抹→强度累加→余辉"流水线可接进我们的成像服务做低成本前端。
-3. **扫描调度用"每帧固定预算+时间切片"**：A-4E-C 20 Hz 每帧固定方位段数、C++ 每帧 100 采样点；A-6E 逆向出"5° 区间 ≈ 0.82 s 周期"。我们的世界锚定扫掠可照此设每帧方位/距离门预算，扫描周期显式跟随 scan_beam × scan_volume 推导。
+3. **扫描调度用"每帧固定预算+时间切片"**：A-4E-C 20 Hz 每帧固定方位段数、C++ 每帧 100 采样点；A-6E 反推出"5° 区间 ≈ 0.82 s 周期"。我们的世界锚定扫掠可照此设每帧方位/距离门预算，扫描周期显式跟随 scan_beam × scan_volume 推导。
 4. **显示层用"参数/图元"而不是图像**：A-4E-C 的 2500 blob 方案证明该量级可行；逐像素贴图更新在 DCS 里代价未知、需另行验证。
 5. **"寄生模块"可快速验证玩法但不做仿真**：若需要可联机试飞的演示壳，可把外部成像服务挂到这类壳上；核心仿真保持 Export + 任务桥接架构。
 
@@ -458,7 +458,7 @@ Lua 写法在所有机型一字不差：
 
 F-15E 证据链：三张 `MFD_radar_video_*` 纹理（`materials.lua:67-72`，素材名 `nil` = 运行时生成）；`F15E_CPT.dll` 内含 `to_render_target` 字符串（Lua 层无一处使用）；设备注册 `device_init.lua:12-28`；RDR_AG 页 241 行全是符号+一张视频纹理。
 
-社区逆向分析（确认存在，官方默许到半公开）：ED 官方论坛 2018 帖 [Basic Radar \[example code\]](https://forum.dcs.world/topic/188347-basic-radar-example-code/) 从 CockpitBase.dll 抽取字符串发现 `RADAR_CONTACT_%02d_` 参数命名规律，并指出这些参数不出现在 `list_cockpit_params()` 里；Helios/DCS-BIOS 大量依赖对 indicator `*_init.lua` 的补丁式改写导出显示内容。
+社区分析（确认存在，官方默许到半公开）：ED 官方论坛 2018 帖 [Basic Radar \[example code\]](https://forum.dcs.world/topic/188347-basic-radar-example-code/) 从 CockpitBase.dll 抽取字符串发现 `RADAR_CONTACT_%02d_` 参数命名规律，并指出这些参数不出现在 `list_cockpit_params()` 里；Helios/DCS-BIOS 大量依赖对 indicator `*_init.lua` 的补丁式改写导出显示内容。
 
 > 推测（未被官方文档确认）：`to_render_target` 是 CockpitBase.dll 暴露给模组 DLL 的接口之一，第三方 DLL 通过调用引擎同名函数把图像写入 MFD render target。
 

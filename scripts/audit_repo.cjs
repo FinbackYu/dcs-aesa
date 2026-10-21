@@ -130,6 +130,10 @@ const RULES = {
     check: 'artifacts', severity: 'warn', gate: 'Gate 0',
     note: '.gitignore 缺少运行产物的忽略规则。',
   },
+  'sensitive-wording': {
+    check: 'wording', severity: 'error', gate: 'post-release',
+    note: '只写事实（偏移/签名/行为/哈希），不写获取方法；内容纪律见 CONTRIBUTING.md。',
+  },
 };
 
 const CHECK_DEFS = [
@@ -143,6 +147,7 @@ const CHECK_DEFS = [
   { id: 'generated', label: '生成物头标记' },
   { id: 'skips', label: '测试 skip 数量' },
   { id: 'artifacts', label: 'recordings/__pycache__/dist 跟踪' },
+  { id: 'wording', label: '敏感方法措辞（文件与提交信息）' },
 ];
 
 const TEXT_EXT = new Set([
@@ -239,6 +244,12 @@ function parseArgs(argv) {
     else if (a === '--verbose' || a === '-v') opts.verbose = true;
     else if (a === '--strict') opts.strict = true;
     else if (a === '--update-baseline') opts.updateBaseline = true;
+    else if (a === '--check-message-file') {
+      const v = argv[++i];
+      if (!v) throw new Error('--check-message-file 需要一个路径');
+      if (!opts.checkMessageFiles) opts.checkMessageFiles = [];
+      opts.checkMessageFiles.push(v);
+    }
     else if (a === '--baseline') {
       const v = argv[++i];
       if (!v) throw new Error('--baseline 需要一个路径');
@@ -1099,6 +1110,64 @@ function checkTrackedArtifacts(git, store) {
   };
 }
 
+// 敏感方法措辞（内容纪律，见 CONTRIBUTING.md）：仓库只写事实（偏移、签名、
+// 行为、哈希），不写获取方法。命中即 error；存量命中登记在
+// tests/baseline/audit-baseline.json，新增一处即 FAIL。
+const WORDING_RULES = [
+  { id: 'unpack', re: /解包/, label: '解包' },
+  { id: 'decompile-zh', re: /反编译/, label: '反编译' },
+  { id: 'disasm-zh', re: /反汇编/, label: '反汇编' },
+  { id: 'reverse-zh', re: /逆向/, label: '逆向' },
+  { id: 'unpack-shell', re: /脱壳/, label: '脱壳' },
+  { id: 'source-extract', re: /源码提取|嵌入源码|字符串提取/, label: '源码提取' },
+  { id: 'decompile-en', re: /decompil/i, label: 'decompile' },
+  { id: 'disasm-en', re: /disassembl/i, label: 'disassemble' },
+  { id: 're-tools', re: /Hex-Rays|IDA Pro|Ghidra|x64dbg|nupkg/i, label: 'RE 工具/格式名' },
+];
+
+// tests/baseline/ 是 allowlist 本身（关键词作为数据出现）；third_party 不改造。
+const WORDING_EXCLUDED = ['tests/baseline/', 'src/native/third_party/'];
+
+function scanWordingLines(store, file, lines) {
+  let hits = 0;
+  lines.forEach((line, index) => {
+    for (const rule of WORDING_RULES) {
+      if (!rule.re.test(line)) continue;
+      hits += 1;
+      // 只报告位置与规则名，不回显行内容（公开 CI 日志可见）。
+      store.add('sensitive-wording', {
+        file,
+        key: `L${index + 1}`,
+        message: `命中措辞规则 ${rule.id}（${rule.label}）`,
+        lines: [index + 1],
+      });
+    }
+  });
+  return hits;
+}
+
+function checkWording(git, workingFiles, store) {
+  const files = filesMatching(workingFiles, [''], new Set([...TEXT_EXT, ...CODE_EXT]), WORDING_EXCLUDED);
+  let fileHits = 0;
+  for (const relPath of files) {
+    fileHits += scanWordingLines(store, relPath, linesOf(relPath));
+  }
+  let commitHits = 0;
+  let commits = 0;
+  const log = runGit(['log', '--format=%H%x00%B%x00', '-n', '50']);
+  if (log.ok && log.stdout) {
+    const parts = log.stdout.split('\0');
+    for (let i = 0; i + 1 < parts.length; i += 2) {
+      const sha = parts[i].trim();
+      const body = parts[i + 1];
+      if (!sha || !body.trim()) continue;
+      commits += 1;
+      commitHits += scanWordingLines(store, `git-log/${sha.slice(0, 12)}`, body.split(/\r?\n/));
+    }
+  }
+  return { scannedFiles: files.length, scannedCommits: commits, fileHits, commitHits };
+}
+
 // ---------------------------------------------------------------------------
 // Baseline
 // ---------------------------------------------------------------------------
@@ -1213,7 +1282,7 @@ function writeBaseline(baselinePath, findings, git) {
     schemaVersion: 1,
     gate: 0,
     command: 'node scripts/audit_repo.cjs --update-baseline',
-    cwd: ROOT,
+    cwd: '<repo>',
     commit: git.commit,
     baselineTag: 'pre-arch-refactor',
     generatedAt: new Date().toISOString(),
@@ -1435,6 +1504,7 @@ function printHelp() {
   --strict             新增 warning 也导致退出码非 0
   --update-baseline    把当前全部发现写入 tests/baseline/audit-baseline.json
   --baseline <path>    指定基线文件（默认 tests/baseline/audit-baseline.json）
+  --check-message-file <path>  独立扫描文本文件的敏感措辞（可重复；CI 扫 PR 文本用）
   --help, -h           显示本帮助
 
 退出码:
@@ -1463,6 +1533,29 @@ function main() {
     return 0;
   }
 
+  // 独立文本扫描模式（CI 扫 PR 标题/正文用）：不走 git，命中即退出码 1。
+  if (opts.checkMessageFiles) {
+    const store = createFindingStore();
+    for (const file of opts.checkMessageFiles) {
+      if (!fs.existsSync(file)) {
+        console.error(`audit_repo: --check-message-file 文件不存在: ${file}`);
+        return 2;
+      }
+      scanWordingLines(store, `message:${path.basename(file)}`,
+        fs.readFileSync(file, 'utf8').split(/\r?\n/));
+    }
+    const findings = store.all();
+    for (const f of findings) {
+      console.log(`[${f.severity}] ${f.rule} ${lineRef(f)} — ${f.message}`);
+    }
+    if (findings.length) {
+      console.log(`audit_repo: ${findings.length} 处措辞命中（内容纪律见 CONTRIBUTING.md）`);
+      return 1;
+    }
+    console.log('audit_repo: 文本措辞检查通过');
+    return 0;
+  }
+
   let git;
   try {
     git = collectGitContext();
@@ -1486,6 +1579,7 @@ function main() {
     extra.generated = checkGenerated(workingFiles, store);
     extra.skips = checkTestSkips(workingFiles, store);
     extra.artifacts = checkTrackedArtifacts(git, store);
+    extra.wording = checkWording(git, workingFiles, store);
   } catch (e) {
     console.error(`audit_repo: 检查执行失败: ${e.stack || e.message}`);
     return 2;
@@ -1515,6 +1609,7 @@ function main() {
       sites: extra.skips.skipSites.reduce((n, s) => n + s.count, 0),
     },
     artifacts: extra.artifacts,
+    wording: extra.wording,
   };
 
   if (opts.updateBaseline) {

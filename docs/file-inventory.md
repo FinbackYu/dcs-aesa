@@ -321,7 +321,7 @@ Gate 4 后：`src/aesa/` 已删除，A/A 核心位于 `src/core/`，DCS 适配�
 |---|---|---|---|
 | `docs/research/agradar-probe-phase1.md` | AGR 探针阶段一调研 | 外部参考 | 保留（只读） |
 | `docs/research/dcs-mod-radar-survey.md` | DCS 社区雷达模组调研 | 外部参考 | 保留（只读） |
-| `docs/research/edterrain4-landscape-map.md` | edterrain4 地表/地图逆向笔记 | 外部参考 | 保留（只读） |
+| `docs/research/edterrain4-landscape-map.md` | edterrain4 地表/地图接口笔记 | 外部参考 | 保留（只读） |
 | `docs/research/enlight-agradar-map.md` | DCS `radar.fx` / AGR 着色器分析 | 外部参考 | 保留（只读） |
 | `docs/research/fire-control-aim120-injection.md` | AIM-120 引导注入调研 | 外部参考 | 保留（只读） |
 | `docs/research/fire-control-paths.md` | 火控调用路径调研 | 外部参考 | 保留（只读） |

@@ -1,0 +1,35 @@
+name: audit
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 全量仓库审计（含 tracked 文件与最近提交信息的措辞检查）。
+      # 输出只含规则名与位置，不回显命中行内容。
+      - name: repo audit
+        run: node scripts/audit_repo.cjs
+
+      # 同一份词表扫 PR 标题/正文（squash 合并的提交信息来自这里）。
+      - name: scan PR text
+        shell: pwsh
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          Set-Content -Path .pr-title.txt -Value $env:PR_TITLE -Encoding utf8 -NoNewline
+          Set-Content -Path .pr-body.txt -Value $env:PR_BODY -Encoding utf8 -NoNewline
+          node scripts/audit_repo.cjs --check-message-file .pr-title.txt --check-message-file .pr-body.txt
