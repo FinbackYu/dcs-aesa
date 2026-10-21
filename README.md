@@ -26,45 +26,50 @@ DCS 现役玩家机雷达全部是"机械扫描 + 脉冲多普勒"，且其探�
 
 ## 仓库结构（当前实际）
 
-```
-aesa/
-  spec/           单一事实源：physics / radar / sar / protocol / deployment / display JSON
-  src/
-    shared/       生成配置 config.lua、protocol.lua、config.cjs + 手写 config_validate.lua
-    core/         纯 A/A 仿真核心（Lua 5.1 子集，无 DCS 依赖）
-                  constants / physics / beam / detection / geometry / scheduler /
-                  tracker / measurement / rcs（接口）/ snapshot / core / init
-    sar_core/     纯 JS SAR 核心：engine / focus / pfa / waveform / memory / scatterers /
-                  materials / map / settings / pool / worker + geometry.{lua,cjs}
-    adapters/dcs/ DCS 适配：frame（唯一 DCS↔ENU 转换）、truth_replay、rcs、rcs_data（生成物）、
-                  sar_adapter（footprint/地表词/对象 kind）、api／compat
-    export/       DCS Export 薄采样：aesa_export.lua（A/A → 3590）；
-                  SAR：aesa_sar_export.lua 入口 + sar_protocol／sar_dcs_env／
-                  sar_collector／sar_transport
-    scene/        任务内场景桥：aesa_sar_mission.lua 入口 + sar_scene_core／sar_mission_env
-    hooks/        Saved Games Hooks 加载器：SAR 场景、AGR、FC 探针
-    native/       C 原生组件：agradar_probe（只读地表 + profile 自检）、
-                  fc_probe（同一 C 源 → aesa_fc_trace.dll 只读 / aesa_fc_inject.dll 写）、
-                  generated/config.h（生成物）、abi/dcs_profile.h（生成 ABI）、
-                  third_party/minhook（第三方，保留 LICENSE）
-  tools/
-    sar_service/  SAR 服务模块：collector／arbiter／map_session／dbs_session／
-                  sweep_planner／coverage_index／mosaic_store／recorder／http_api／service
-    sar_live.cjs  SAR 服务 CLI 组合根（62 行）；sar_bridge.cjs／sar_demo_scene.cjs
-    *.py          lua_host / protocol / ingest / truth（共用层）+
-                  live / receiver / replay 薄 CLI + integration_check / fc_trace_report
-    sar_viewer.html, viewer/index.html   外部显示
-  scripts/        数据提取、配置生成、原生构建、部署/卸载、任务生成、离线实验、
-                  compat_check（DCS 能力矩阵/基线 diff）与统一测试/审计
-  tests/          Python + lupa、Node node:test、Lua 5.1 与原生 DLL 测试；
-                  baseline/ 为基线摘要/allowlist，fixtures/ 为生成配置快照
-  docs/           设计、理论、兼容、测试、重构文档；research/ 为外部调研
-  dist/           本机构建产物（gitignored，仅 .gitkeep 入库）
-  recordings/     实飞录制与 SAR 快照（gitignored，用户数据）
-  worklog/        历史工作日志（只读存档；本机，gitignored）
+```text
+配置生成链：spec/*.json → scripts/gen_config.cjs → src/shared/{config.lua, protocol.lua,
+config.cjs} + src/native/generated/config.h（--check 零 diff 是合并门禁）
+
+┌─ 宿主机（DCS 进程外） ────────────────────────────────────────────────┐
+│ tools/sar_service/* ─▶ src/sar_core（纯 JS SAR 核心）                  │
+│ tools/{live,receiver,replay}.py ─▶ src/core（纯 Lua A/A 核心）         │
+│ tools/cockpit_bridge.py ─▶ state.txt（10 Hz）                          │
+│ sar_viewer.html、viewer/（只读 snapshot/图像，不重算物理）              │
+└──────▲───────────────▲─────────────────────────▲────────────▲─────────┘
+       │TCP 3590/3592  │TCP 3594                 │TCP 3592    │state.txt
+       │（A/A+SAR 下行）│（场景查询上行）          │（SAR 下行） │（座舱上行）
+╪══════╪═══════════════╪═════════════════════════╪════════════╪══════════╪
+┌──────┴───────┐ ┌─────┴──────┐           ┌──────┴───────┐ ┌──┴───────────┐
+│ src/export   │ │ src/scene  │           │ src/hooks    │ │ cockpit 页面  │
+│ A/A+SAR 采样  │ │ 任务场景桥  │           │ 3 个 hook     │ │ + controller │
+└──────▲───────┘ └─────▲──────┘           └──────▲───────┘ └──▲───────────┘
+       └───────────────┴────────┬───────────────┴──────────────┘
+                                │ AESA_RUNTIME（scripts/build_runtime.cjs 打包）
+              ┌─────────────────┴──────────────────────────────────┐
+              │ src/adapters/dcs —— 唯一的 DCS 语义层               │
+              │ frame · truth_replay · rcs · api/* · compat         │
+              └───────▲──────────────────────────▲─────────────────┘
+                      │                          │ package.loadlib
+        ┌─────────────┴───────────┐   ┌──────────┴─────────────────┐
+        │ src/core / src/sar_core │   │ src/native（C：agradar +    │
+        │ 纯核心，不依赖 DCS       │   │ fc_trace/fc_inject，默认只读）│
+        └─────────────────────────┘   └────────────────────────────┘
 ```
 
-Gate 5 已完成 SAR 边界迁移（`src/sar_core/`、`tools/sar_service/`、Export/mission 拆分、D3 端点）；Gate 6 已完成原生 `fc_trace|fc_inject` 拆分、`build_common`/`install_common` 部署统一与审计清零；Gate 7 已完成全量回归、基线对照、部署生命周期清理与实机 smoke。`spec/`、`src/core/`、`src/adapters/dcs/`、`src/shared/` 已在 Gate 2–5 建立。当前 Python A/A 工具位于 `tools/` 顶层，没有 `tools/python/` 子目录。
+| 目录 | 内容 |
+|---|---|
+| `spec/` | 单一事实源：physics / radar / sar / protocol / deployment / display JSON + dcs_profiles |
+| `src/core`、`src/sar_core` | 纯仿真核心（Lua A/A、JS SAR）：无 DCS、无 IO、无文件系统 |
+| `src/adapters/dcs/` | 唯一 DCS 语义层：frame（DCS↔ENU 唯一转换）、truth_replay、rcs、api/compat、cockpit 页 |
+| `src/export`、`src/scene`、`src/hooks` | DCS 进程内入口：Export 采样、任务场景桥、Saved Games Hooks 生命周期 |
+| `src/native/` | C 探针：agradar_probe（只读地表）、fc_probe（trace/inject 双构建）、third_party/minhook |
+| `tools/` | 宿主机侧：sar_service 服务模块、Python 工具链（lua_host/protocol/ingest/truth + 薄 CLI）、viewer |
+| `scripts/` | 数据提取、配置生成、原生构建、部署/卸载、compat_check、统一测试/审计 |
+| `tests/` | Python + lupa、Node node:test、Lua 5.1 与原生 DLL 测试；baseline/ 与 fixtures/ |
+| `docs/` | 设计、理论、兼容、测试、重构文档；research/ 为外部调研（只读） |
+| `dist/`、`recordings/`、`worklog/` | 本机产物与用户数据（gitignored；dist 仅 .gitkeep 入库） |
+
+完整文件地图与依赖硬规则见 [docs/architecture.md](docs/architecture.md) 与 [docs/file-inventory.md](docs/file-inventory.md)。
 
 ## 架构与开发文档
 
