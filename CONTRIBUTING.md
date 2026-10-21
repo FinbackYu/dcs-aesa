@@ -4,6 +4,7 @@
 
 - `master` 受分支保护：所有改动（包括维护者的）都必须经 Pull Request 合入，合并方式仅为 squash merge。
 - 提交 PR 前请通过 `node scripts/test_all.cjs` 与 `node scripts/audit_repo.cjs`。
+- PR 上的 `audit` 状态检查为必需：CI 会跑 `node scripts/audit_repo.cjs`，并用同一份词表扫描 PR 标题与正文（squash 合并的提交信息来自这里），未通过不能合并。
 
 ## Developer Certificate of Origin（DCO）
 

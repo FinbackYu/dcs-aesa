@@ -297,34 +297,60 @@ tools/replay.py
 
 ### 3.2 目标依赖
 
+**配置生成链**（改参数只改 spec，生成物零 diff 是门禁）：
+
 ```text
-                        spec/*.json
-                             │ gen_config
-          ┌──────────────────┼───────────────────┐
-          ▼                  ▼                   ▼
-   src/shared/*.lua   src/shared/*.cjs(*)   src/native/generated/config.h
-          │                  │                   │
-          ▼                  ▼                   ▼
-   ┌─────────────┐    ┌──────────────┐    ┌─────────────────┐
-   │ src/core    │    │ src/sar_core │    │ src/native/abi  │
-   │ 纯 Lua      │    │ 纯 JS        │    │ dcs_profile.h   │
-   └──────▲──────┘    └──────▲───────┘    └────────▲────────┘
-          │                  │                     │
-   ┌──────┴──────────────────┴─────────────────────┴────────┐
-   │ src/adapters/dcs  （frame / truth / rcs / api / compat）│
-   └──────▲──────────────▲──────────────▲───────────────────┘
-          │              │              │
-     src/export     src/scene      src/hooks
-          │              │              │
-          └──────────────┴──────────────┴──→ DCS Lua 宿主 / DLL
-
-   tools/sar_service  ──→ src/sar_core（只编排，不定义物理）
-          ▲
-          │ HTTP / 文件
-       viewer（只读摘要与图像，不重算物理）
-
-(*) 见 §9.1 A-13：JS 生成物的落点需保证 sar_core 不反向依赖 tools。
+                spec/*.json（物理/雷达/SAR/协议/部署/显示 + dcs_profiles）
+                                   │ scripts/gen_config.cjs
+        ┌──────────────────────────┼────────────────────────────┐
+        ▼                          ▼                            ▼
+ src/shared/config.lua    src/shared/config.cjs      src/native/generated/config.h
+ + protocol.lua           （SAR JS 配置）             + abi/dcs_profile.h（profile 生成）
 ```
+
+**模块分层与运行时数据流**（箭头 = 依赖/数据方向；`════` = DCS 进程边界）：
+
+```text
+┌─ DCS 进程外（宿主机） ─────────────────────────────────────────────────────┐
+│                                                                            │
+│  tools/sar_service/* ──使用──▶ src/sar_core（纯 JS：成像/聚焦/MAP；         │
+│   （编排/会话/HTTP 3593）        无 DCS、无 HTTP、无 fs）                   │
+│                                                                            │
+│  tools/{live,receiver,replay}.py ──经 lua_host──▶ src/core（纯 Lua：       │
+│                                                    调度/方程/航迹）        │
+│  tools/cockpit_bridge.py ──写──▶ state.txt（10 Hz）                        │
+│  viewer/*（HTML；只读 snapshot/图像，不重算物理）                           │
+└──────▲────────────────▲───────────────────────────▲───────────▲────────────┘
+       │                │                           │           │
+       │ TCP 3590/3592  │ TCP 3594                  │ TCP 3592  │ state.txt
+       │ A/A + SAR 下行 │ 场景查询上行               │ SAR 下行  │ 座舱状态上行
+       │                │                           │           │
+╪══════╪════════════════╪═══════════════════════════╪═══════════╪═══════════╪
+       │                │                           │           │
+┌──────┴───────┐ ┌──────┴───────┐           ┌───────┴───────┐ ┌─┴───────────┐
+│ src/export   │ │ src/scene    │           │ src/hooks     │ │ adapters/   │
+│ A/A 采样      │ │ 任务场景桥    │           │ 3 个 hook：    │ │ dcs/cockpit │
+│ + SAR 采集    │ │ GMTI/场景序列 │           │ 生命周期/桥接  │ │ controller  │
+└──────▲───────┘ └──────▲───────┘           └───────▲───────┘ └─▲───────────┘
+       │                │                           │           │
+       └────────────────┴───────┬───────────────────┴───────────┘
+                                │ AESA_RUNTIME（build_runtime.cjs 打包）
+              ┌─────────────────┴────────────────────────────────┐
+              │ src/adapters/dcs —— 唯一的 DCS 语义层             │
+              │ frame（帧/姿态转换 D1）· truth_replay · rcs       │
+              │ api/{export,mission,hook,native,socket}（API 单点）│
+              │ compat（profile/probe 能力矩阵）                  │
+              └───────▲──────────────────────────▲───────────────┘
+                      │                          │ package.loadlib
+        ┌─────────────┴───────────┐   ┌──────────┴────────────────┐
+        │ src/core（纯 Lua，ENU） │   │ src/native（C 探针）       │
+        │ 被 adapters 与 tools     │   │ agradar_probe ·            │
+        │ 两侧复用，不依赖 DCS     │   │ fc_trace/fc_inject（D4，   │
+        │                          │   │ 默认只读）                 │
+        └──────────────────────────┘   └───────────────────────────┘
+```
+
+要点：`src/core`、`src/sar_core` 两个纯核心只被依赖、不反向依赖；DCS 语义（坐标系、机型名、游戏 API）全部收口在 `src/adapters/dcs`；`tools/` 只做编排、传输与显示，不定义物理。
 
 ### 3.3 硬规则
 
